@@ -1,11 +1,15 @@
 import { dbFetch } from "../_db.js";
+import { getUser } from "../_auth.js";
 
 export default async function handler(req, res) {
+  const user = await getUser(req);
+  if (!user) return res.status(401).json({ error: "Unauthorized" });
+
   const { id } = req.query;
 
   try {
     if (req.method === "GET") {
-      const rows = await dbFetch(`/sessions?id=eq.${id}&select=*&limit=1`);
+      const rows = await dbFetch(`/sessions?id=eq.${id}&user_id=eq.${user.id}&select=*&limit=1`);
       if (!rows || rows.length === 0) return res.status(404).json({ error: "Session not found" });
       return res.status(200).json(rows[0]);
     }
@@ -16,7 +20,7 @@ export default async function handler(req, res) {
       for (const key of allowed) {
         if (req.body[key] !== undefined) patch[key] = req.body[key];
       }
-      const rows = await dbFetch(`/sessions?id=eq.${id}`, {
+      const rows = await dbFetch(`/sessions?id=eq.${id}&user_id=eq.${user.id}`, {
         method: "PATCH",
         body: JSON.stringify(patch),
       });

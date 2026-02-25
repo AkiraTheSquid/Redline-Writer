@@ -1,10 +1,13 @@
-const BASE = "";
+let _accessToken = null;
+
+export function setAccessToken(token) {
+  _accessToken = token;
+}
 
 async function apiFetch(path, options = {}) {
-  const res = await fetch(`${BASE}${path}`, {
-    headers: { "Content-Type": "application/json", ...options.headers },
-    ...options,
-  });
+  const headers = { "Content-Type": "application/json", ...options.headers };
+  if (_accessToken) headers["Authorization"] = `Bearer ${_accessToken}`;
+  const res = await fetch(path, { ...options, headers });
   if (!res.ok) {
     const err = await res.text();
     throw new Error(err || res.statusText);

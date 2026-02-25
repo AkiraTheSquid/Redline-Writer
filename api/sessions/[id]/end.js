@@ -1,13 +1,17 @@
 import { dbFetch } from "../../_db.js";
+import { getUser } from "../../_auth.js";
 
 export default async function handler(req, res) {
   if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
+
+  const user = await getUser(req);
+  if (!user) return res.status(401).json({ error: "Unauthorized" });
 
   const { id } = req.query;
   const { outcome, content = "", organizer_text = "", word_count = 0, wpm_at_end = 0, elapsed_sec = 0 } = req.body;
 
   try {
-    const rows = await dbFetch(`/sessions?id=eq.${id}`, {
+    const rows = await dbFetch(`/sessions?id=eq.${id}&user_id=eq.${user.id}`, {
       method: "PATCH",
       body: JSON.stringify({
         outcome,

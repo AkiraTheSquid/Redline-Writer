@@ -12,6 +12,7 @@ async function apiFetch(path, options = {}) {
     const err = await res.text();
     throw new Error(err || res.statusText);
   }
+  if (res.status === 204) return null;
   return res.json();
 }
 
@@ -28,4 +29,7 @@ export const api = {
   listSessions: () => apiFetch("/sessions"),
 
   getSession: (id) => apiFetch(`/sessions/${id}`),
+
+  deleteSession: (id) =>
+    apiFetch(`/sessions/${id}`, { method: "DELETE" }),
 };

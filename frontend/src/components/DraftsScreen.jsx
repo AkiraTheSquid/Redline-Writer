@@ -40,6 +40,16 @@ export default function DraftsScreen({ onOpen, onSignOut, authEnabled }) {
     api.patchSession(draftId, { title }).catch(() => {});
   }
 
+  async function handleDelete(draftId) {
+    if (!window.confirm("Are you sure you want to delete this draft? Action cannot be undone.")) return;
+    try {
+      await api.deleteSession(draftId);
+      setDrafts((prev) => prev.filter((d) => d.id !== draftId));
+    } catch (e) {
+      setError(String(e));
+    }
+  }
+
   return (
     <div style={{ maxWidth: 700, margin: "0 auto", padding: "40px 24px", position: "relative" }}>
       {authEnabled && (
@@ -128,6 +138,24 @@ export default function DraftsScreen({ onOpen, onSignOut, authEnabled }) {
             }}
           >
             Start Session
+          </button>
+          <button
+            onClick={() => handleDelete(draft.id)}
+            title="Delete draft"
+            style={{
+              padding: "8px 10px",
+              fontSize: 14,
+              fontWeight: 700,
+              background: "transparent",
+              color: "#bbb",
+              border: "1px solid #e0e0e0",
+              borderRadius: 5,
+              cursor: "pointer",
+              flexShrink: 0,
+              lineHeight: 1,
+            }}
+          >
+            ✕
           </button>
         </div>
       ))}

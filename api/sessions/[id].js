@@ -28,6 +28,11 @@ export default async function handler(req, res) {
       return res.status(200).json(rows[0]);
     }
 
+    if (req.method === "DELETE") {
+      await dbFetch(`/sessions?id=eq.${id}&user_id=eq.${user.id}`, { method: "DELETE" });
+      return res.status(204).end();
+    }
+
     res.status(405).json({ error: "Method not allowed" });
   } catch (e) {
     res.status(e.status || 500).json(e.body || { error: String(e) });

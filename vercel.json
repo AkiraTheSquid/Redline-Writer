@@ -3,6 +3,10 @@
   "outputDirectory": "frontend/dist",
   "cleanUrls": true,
   "rewrites": [
-    { "source": "/(.*)", "destination": "/index.html" }
+    { "source": "/health",                "destination": "/api/health" },
+    { "source": "/sessions",              "destination": "/api/sessions/index" },
+    { "source": "/sessions/:id/end",      "destination": "/api/sessions/:id/end" },
+    { "source": "/sessions/:id",          "destination": "/api/sessions/:id" },
+    { "source": "/(.*)",                  "destination": "/index.html" }
   ]
 }

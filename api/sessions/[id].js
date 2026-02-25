@@ -15,7 +15,7 @@ export default async function handler(req, res) {
     }
 
     if (req.method === "PATCH") {
-      const allowed = ["content", "organizer_text", "word_count", "wpm_at_end", "elapsed_sec"];
+      const allowed = ["content", "organizer_text", "word_count", "wpm_at_end", "elapsed_sec", "title", "outcome", "duration_min", "min_wpm"];
       const patch = {};
       for (const key of allowed) {
         if (req.body[key] !== undefined) patch[key] = req.body[key];

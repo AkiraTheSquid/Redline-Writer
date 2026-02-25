@@ -2,16 +2,15 @@ import { useState, useEffect } from "react";
 import { supabase } from "./lib/supabase.js";
 import { setAccessToken } from "./api.js";
 import AuthScreen from "./components/AuthScreen.jsx";
-import SetupScreen from "./components/SetupScreen.jsx";
+import DraftsScreen from "./components/DraftsScreen.jsx";
 import WritingScreen from "./components/WritingScreen.jsx";
-import SessionHistory from "./components/SessionHistory.jsx";
 
 // Auth is only active in production (when Supabase env vars are present)
 const AUTH_ENABLED = !!supabase;
 
 export default function App() {
-  const [view, setView] = useState("setup");
-  const [sessionConfig, setSessionConfig] = useState(null);
+  const [view, setView] = useState("drafts");
+  const [activeDraft, setActiveDraft] = useState(null);
   const [user, setUser] = useState(null);
   const [authLoading, setAuthLoading] = useState(AUTH_ENABLED);
 
@@ -48,26 +47,27 @@ export default function App() {
     if (supabase) supabase.auth.signOut();
   }
 
+  function handleOpenDraft(draft) {
+    setActiveDraft(draft);
+    setView("writing");
+  }
+
+  function handleWritingEnd() {
+    setActiveDraft(null);
+    setView("drafts");
+  }
+
   return (
     <div style={{ height: "100%" }}>
-      {AUTH_ENABLED && view === "setup" && (
-        <div style={{ position: "absolute", top: 14, right: 18 }}>
-          <button
-            onClick={handleSignOut}
-            style={{ fontSize: 12, color: "#aaa", background: "none", border: "none", cursor: "pointer" }}
-          >
-            Sign out
-          </button>
-        </div>
+      {view === "drafts" && (
+        <DraftsScreen
+          onOpen={handleOpenDraft}
+          onSignOut={handleSignOut}
+          authEnabled={AUTH_ENABLED}
+        />
       )}
-      {view === "setup" && (
-        <SetupScreen onStart={(config) => { setSessionConfig(config); setView("writing"); }} onHistory={() => setView("history")} />
-      )}
-      {view === "writing" && sessionConfig && (
-        <WritingScreen config={sessionConfig} onEnd={() => setView("history")} />
-      )}
-      {view === "history" && (
-        <SessionHistory onNewSession={() => { setSessionConfig(null); setView("setup"); }} />
+      {view === "writing" && activeDraft && (
+        <WritingScreen draft={activeDraft} onEnd={handleWritingEnd} />
       )}
     </div>
   );

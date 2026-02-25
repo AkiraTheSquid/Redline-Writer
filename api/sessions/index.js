@@ -7,16 +7,19 @@ export default async function handler(req, res) {
 
   try {
     if (req.method === "POST") {
-      const { duration_min, min_wpm, reminder_interval_min = 0, organizer_text = "" } = req.body;
+      const {
+        duration_min = 20, min_wpm = 10, reminder_interval_min = 0,
+        organizer_text = "", outcome = "draft", title = "", content = "",
+      } = req.body;
       const rows = await dbFetch("/sessions", {
         method: "POST",
-        body: JSON.stringify({ duration_min, min_wpm, reminder_interval_min, organizer_text, outcome: "active", user_id: user.id }),
+        body: JSON.stringify({ duration_min, min_wpm, reminder_interval_min, organizer_text, outcome, title, content, user_id: user.id }),
       });
       return res.status(201).json(Array.isArray(rows) ? rows[0] : rows);
     }
 
     if (req.method === "GET") {
-      const rows = await dbFetch(`/sessions?outcome=neq.active&user_id=eq.${user.id}&order=created_at.desc&select=*`);
+      const rows = await dbFetch(`/sessions?outcome=eq.draft&user_id=eq.${user.id}&order=created_at.desc&select=*`);
       return res.status(200).json(rows);
     }
 

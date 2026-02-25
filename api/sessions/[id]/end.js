@@ -14,7 +14,7 @@ export default async function handler(req, res) {
     const rows = await dbFetch(`/sessions?id=eq.${id}&user_id=eq.${user.id}`, {
       method: "PATCH",
       body: JSON.stringify({
-        outcome,
+        outcome: "draft",  // drafts always persist; content already empty if session was deleted
         content,
         organizer_text,
         word_count,

@@ -36,5 +36,7 @@ class Session(Base):
     wpm_at_end: Mapped[float] = mapped_column(Float, default=0.0)
     elapsed_sec: Mapped[int] = mapped_column(Integer, default=0)
 
-    # Outcome: 'active', 'completed', 'deleted_inactivity', 'deleted_wpm', 'abandoned'
+    # Outcome: 'active', 'draft', 'completed', 'deleted_inactivity', 'deleted_wpm', 'abandoned'
     outcome: Mapped[str] = mapped_column(String(32), default="active")
+
+    title: Mapped[str] = mapped_column(Text, default="")

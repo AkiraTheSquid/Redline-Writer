@@ -4,10 +4,13 @@ from pydantic import BaseModel
 
 
 class SessionCreate(BaseModel):
-    duration_min: int
-    min_wpm: int
+    duration_min: int = 20
+    min_wpm: int = 10
     reminder_interval_min: int = 0
     organizer_text: str = ""
+    outcome: str = "active"
+    title: str = ""
+    content: str = ""
 
 
 class SessionPatch(BaseModel):
@@ -16,6 +19,10 @@ class SessionPatch(BaseModel):
     word_count: int | None = None
     wpm_at_end: float | None = None
     elapsed_sec: int | None = None
+    title: str | None = None
+    outcome: str | None = None
+    duration_min: int | None = None
+    min_wpm: int | None = None
 
 
 class SessionEnd(BaseModel):
@@ -42,3 +49,4 @@ class SessionOut(BaseModel):
     wpm_at_end: float
     elapsed_sec: int
     outcome: str
+    title: str

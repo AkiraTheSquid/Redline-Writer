@@ -1,7 +1,7 @@
 from datetime import datetime, timezone
 from uuid import UUID
 
-from fastapi import FastAPI, Depends, HTTPException
+from fastapi import FastAPI, Depends, HTTPException, Response
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session as DBSession
 
@@ -31,7 +31,9 @@ def create_session(body: SessionCreate, db: DBSession = Depends(get_db)):
         min_wpm=body.min_wpm,
         reminder_interval_min=body.reminder_interval_min,
         organizer_text=body.organizer_text,
-        outcome="active",
+        outcome=body.outcome,
+        title=body.title,
+        content=body.content,
     )
     db.add(session)
     db.commit()
@@ -46,9 +48,6 @@ def patch_session(
     session = db.get(Session, session_id)
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
-    if session.outcome != "active":
-        raise HTTPException(status_code=409, detail="Session already ended")
-
     for field, value in body.model_dump(exclude_none=True).items():
         setattr(session, field, value)
 
@@ -82,7 +81,7 @@ def end_session(
 def list_sessions(db: DBSession = Depends(get_db)):
     return (
         db.query(Session)
-        .filter(Session.outcome != "active")
+        .filter(Session.outcome == "draft")
         .order_by(Session.created_at.desc())
         .all()
     )
@@ -94,3 +93,13 @@ def get_session(session_id: UUID, db: DBSession = Depends(get_db)):
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
     return session
+
+
+@app.delete("/sessions/{session_id}", status_code=204)
+def delete_session(session_id: UUID, db: DBSession = Depends(get_db)):
+    session = db.get(Session, session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+    db.delete(session)
+    db.commit()
+    return Response(status_code=204)

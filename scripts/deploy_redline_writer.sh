@@ -7,8 +7,8 @@ set -euo pipefail
 # 1. Checks for uncommitted changes on main (auto-commits all)
 # 2. Pushes main to origin
 # 3. In the deploy worktree, merges main into deploy
-# 4. Pushes deploy to origin (version control backup)
-# 5. Deploys to Vercel via CLI
+# 4. Pushes deploy to origin
+# 5. Triggers Vercel deploy hook (builds from deploy branch)
 # ============================================================
 
 REPO_DIR="/home/stellar-thread/Applications/Redline-Writer-Local"
@@ -56,15 +56,16 @@ info "Merging main into deploy branch..."
 git -C "$DEPLOY_DIR" checkout deploy
 git -C "$DEPLOY_DIR" merge main --no-edit
 
-# --- Step 4: Push deploy to origin (version control backup) ---
+# --- Step 4: Push deploy to origin ---
 
 info "Pushing deploy to origin..."
 git -C "$DEPLOY_DIR" push origin deploy
 
-# --- Step 5: Deploy to Vercel via CLI ---
+# --- Step 5: Trigger Vercel deploy hook (builds from deploy branch) ---
 
-info "Deploying to Vercel..."
-(cd "$DEPLOY_DIR" && vercel --prod --yes)
+VERCEL_HOOK="https://api.vercel.com/v1/integrations/deploy/prj_isokDOR6pfKkRKuLnTJru45WAa18/uL3d38Cgbp"
+info "Triggering Vercel build..."
+curl -s -X POST "$VERCEL_HOOK" | python3 -c "import sys,json; d=json.load(sys.stdin); print('  job:', d.get('job',{}).get('id','?'))"
 
 echo ""
 echo -e "${GREEN}======================================${NC}"

@@ -7,7 +7,8 @@ set -euo pipefail
 # 1. Checks for uncommitted changes on main (auto-commits all)
 # 2. Pushes main to origin
 # 3. In the deploy worktree, merges main into deploy
-# 4. Pushes deploy to origin (triggers Vercel build)
+# 4. Pushes deploy to origin (version control backup)
+# 5. Deploys to Vercel via CLI
 # ============================================================
 
 REPO_DIR="/home/stellar-thread/Applications/Redline-Writer-Local"
@@ -55,15 +56,18 @@ info "Merging main into deploy branch..."
 git -C "$DEPLOY_DIR" checkout deploy
 git -C "$DEPLOY_DIR" merge main --no-edit
 
-# --- Step 4: Push deploy to origin (triggers Vercel) ---
+# --- Step 4: Push deploy to origin (version control backup) ---
 
 info "Pushing deploy to origin..."
 git -C "$DEPLOY_DIR" push origin deploy
 
+# --- Step 5: Deploy to Vercel via CLI ---
+
+info "Deploying to Vercel..."
+(cd "$DEPLOY_DIR" && vercel --prod --yes)
+
 echo ""
 echo -e "${GREEN}======================================${NC}"
 echo -e "${GREEN}  Deploy complete!${NC}"
-echo -e "${GREEN}  Vercel will build and deploy from${NC}"
-echo -e "${GREEN}  the deploy branch.${NC}"
 echo -e "${GREEN}  ${VERCEL_URL}${NC}"
 echo -e "${GREEN}======================================${NC}"

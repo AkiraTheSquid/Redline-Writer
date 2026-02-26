@@ -81,7 +81,7 @@ def end_session(
 def list_sessions(db: DBSession = Depends(get_db)):
     return (
         db.query(Session)
-        .filter(Session.outcome == "draft")
+        .filter(Session.outcome.in_(["draft", "active", "completed"]))
         .order_by(Session.created_at.desc())
         .all()
     )

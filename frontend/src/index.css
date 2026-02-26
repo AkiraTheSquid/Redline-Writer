@@ -25,3 +25,141 @@ button {
   color: transparent;
   background: rgba(0, 0, 0, 0.15);
 }
+
+/* ── Rich text editor (TipTap / ProseMirror) ─────────────────────────────── */
+
+/* EditorContent wrapper: fills remaining height and scrolls */
+.rich-editor-scroll {
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ProseMirror contenteditable: fills the scroll container */
+.rich-editor-scroll .ProseMirror {
+  flex: 1;
+  min-height: 100%;
+  padding: 16px 20px;
+  font-size: 24px;
+  line-height: 1.7;
+  outline: none;
+  color: #111;
+  font-family: inherit;
+  word-break: break-word;
+}
+
+/* Placeholder */
+.rich-editor-scroll .ProseMirror p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  float: left;
+  color: #aaa;
+  pointer-events: none;
+  height: 0;
+}
+
+/* Headings */
+.rich-editor-scroll .ProseMirror h1 {
+  font-size: 1.9em;
+  font-weight: 700;
+  line-height: 1.25;
+  margin: 0.5em 0 0.25em;
+}
+.rich-editor-scroll .ProseMirror h2 {
+  font-size: 1.5em;
+  font-weight: 700;
+  line-height: 1.3;
+  margin: 0.5em 0 0.25em;
+}
+.rich-editor-scroll .ProseMirror h3 {
+  font-size: 1.2em;
+  font-weight: 700;
+  line-height: 1.35;
+  margin: 0.5em 0 0.2em;
+}
+.rich-editor-scroll .ProseMirror h4,
+.rich-editor-scroll .ProseMirror h5,
+.rich-editor-scroll .ProseMirror h6 {
+  font-size: 1em;
+  font-weight: 700;
+  margin: 0.5em 0 0.2em;
+}
+
+/* Paragraphs */
+.rich-editor-scroll .ProseMirror p {
+  margin: 0 0 0.4em;
+}
+.rich-editor-scroll .ProseMirror p:last-child {
+  margin-bottom: 0;
+}
+
+/* Links */
+.rich-editor-scroll .ProseMirror a {
+  color: #0066cc;
+  text-decoration: underline;
+  cursor: pointer;
+}
+.rich-editor-scroll .ProseMirror a:hover {
+  color: #004499;
+}
+
+/* Lists */
+.rich-editor-scroll .ProseMirror ul,
+.rich-editor-scroll .ProseMirror ol {
+  padding-left: 1.6em;
+  margin: 0.4em 0;
+}
+.rich-editor-scroll .ProseMirror li > p {
+  margin: 0;
+}
+.rich-editor-scroll .ProseMirror li {
+  margin: 0.15em 0;
+}
+
+/* Blockquote */
+.rich-editor-scroll .ProseMirror blockquote {
+  border-left: 3px solid #ddd;
+  padding-left: 1em;
+  color: #666;
+  margin: 0.6em 0;
+  font-style: italic;
+}
+
+/* Inline formatting */
+.rich-editor-scroll .ProseMirror strong { font-weight: 700; }
+.rich-editor-scroll .ProseMirror em { font-style: italic; }
+.rich-editor-scroll .ProseMirror u { text-decoration: underline; }
+.rich-editor-scroll .ProseMirror s { text-decoration: line-through; }
+
+/* Inline code */
+.rich-editor-scroll .ProseMirror code {
+  font-family: "Cascadia Code", "Fira Code", "Consolas", monospace;
+  font-size: 0.82em;
+  background: #f5f5f5;
+  border: 1px solid #e0e0e0;
+  border-radius: 3px;
+  padding: 0.1em 0.3em;
+}
+
+/* Code block */
+.rich-editor-scroll .ProseMirror pre {
+  background: #f5f5f5;
+  border: 1px solid #e0e0e0;
+  border-radius: 6px;
+  padding: 0.9em 1.1em;
+  overflow-x: auto;
+  margin: 0.6em 0;
+}
+.rich-editor-scroll .ProseMirror pre code {
+  background: none;
+  border: none;
+  padding: 0;
+  font-size: 0.82em;
+}
+
+/* Horizontal rule */
+.rich-editor-scroll .ProseMirror hr {
+  border: none;
+  border-top: 2px solid #eee;
+  margin: 1em 0;
+}

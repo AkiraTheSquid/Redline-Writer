@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import { api } from "../api.js";
 import SettingsModal from "./SettingsModal.jsx";
+import RichEditor, { extractTiptapHeaders } from "./RichEditor.jsx";
 
 // ─── helpers ────────────────────────────────────────────────────────────────
 
@@ -32,33 +33,6 @@ function beep(frequency = 750, durationMs = 150) {
   } catch {
     // silently ignore
   }
-}
-
-function maskText(str, allowHeaders) {
-  if (!allowHeaders) return str.replace(/[A-Za-z0-9]/g, "*");
-  return str
-    .split("\n")
-    .map((line) => (/^#+\s/.test(line) ? line : line.replace(/[A-Za-z0-9]/g, "*")))
-    .join("\n");
-}
-
-function extractHeaders(text) {
-  const lines = text.split("\n");
-  const headers = [];
-  let index = 0;
-  for (const line of lines) {
-    const match = line.match(/^(#{1,6})\s+(.*)$/);
-    if (match) headers.push({ level: match[1].length, text: match[2].trim() || "(blank)", index });
-    index += line.length + 1;
-  }
-  return headers;
-}
-
-function getLineHeightPx(textarea) {
-  const style = window.getComputedStyle(textarea);
-  const lineHeight = parseFloat(style.lineHeight);
-  if (!Number.isNaN(lineHeight)) return lineHeight;
-  return (parseFloat(style.fontSize) || 16) * 1.7;
 }
 
 const SIDEBAR_COLORS = [
@@ -105,6 +79,7 @@ export default function WritingScreen({ draft, onEnd }) {
   const sessionEndedRef = useRef(false);
 
   // ── Writing state (refs for use inside interval callback) ────────────────
+  // textRef holds plain text (from TipTap's .getText()) for word/char counting
   const textRef = useRef(draft.content || "");
   const organizerRef = useRef(draft.organizer_text || "");
   const sessionStartRef = useRef(null);
@@ -122,24 +97,38 @@ export default function WritingScreen({ draft, onEnd }) {
   const [displayWpm, setDisplayWpm] = useState(0);
   const [displayTime, setDisplayTime] = useState(0);
   const [sidebarColor, setSidebarColor] = useState("#FFFFFF");
-  const [outcome, setOutcome] = useState(null);
-  const [maskedText, setMaskedText] = useState("");
   const [outlineItems, setOutlineItems] = useState([]);
   const [intervalIndex, setIntervalIndex] = useState(0);
   const [editWorkMode, setEditWorkMode] = useState(false);
 
-  // ── DOM refs ─────────────────────────────────────────────────────────────
-  const mainEditRef = useRef(null);
-  const overlayRef = useRef(null);
+  // ── Editor ref (TipTap, exposes getHTML/getText/getEditor/clearContent) ──
+  const editorRef = useRef(null);
+  // htmlRef mirrors the current editor HTML at all times — used for saving,
+  // since editorRef.current may be null at the moment endSession fires.
+  const htmlRef = useRef(draft.content || "");
 
-  // ── Load draft content into textarea on mount ────────────────────────────
-  useEffect(() => {
-    if (mainEditRef.current) {
-      mainEditRef.current.value = draft.content || "";
-      textRef.current = draft.content || "";
-      if (draft.content) setOutlineItems(extractHeaders(draft.content));
+  // ── RichEditor onChange: keep textRef + htmlRef + outline in sync ─────────
+  function handleRichEditorChange(html, text) {
+    textRef.current = text;
+    htmlRef.current = html;
+    const tiptapEditor = editorRef.current?.getEditor();
+    if (tiptapEditor) {
+      setOutlineItems(extractTiptapHeaders(tiptapEditor));
     }
-  }, []);
+    if (!sessionMode) {
+      scheduleDraftSave(html);
+    }
+  }
+
+  // Populate outline + sync refs on initial editor mount (before first keystroke)
+  function handleEditorReady(tiptapEditor) {
+    const headers = extractTiptapHeaders(tiptapEditor);
+    setOutlineItems(headers);
+    const text = tiptapEditor.getText({ blockSeparator: "\n" });
+    const html = tiptapEditor.getHTML();
+    textRef.current = text;
+    htmlRef.current = html;
+  }
 
   // ── Draft mode auto-save (debounced, 1.5s after last keystroke) ──────────
   const draftSaveTimeoutRef = useRef(null);
@@ -159,7 +148,7 @@ export default function WritingScreen({ draft, onEnd }) {
   async function handleBack() {
     clearTimeout(draftSaveTimeoutRef.current);
     try {
-      await api.patchSession(draft.id, { content: textRef.current, title: draftTitle });
+      await api.patchSession(draft.id, { content: htmlRef.current, title: draftTitle });
     } catch {}
     onEnd();
   }
@@ -192,8 +181,6 @@ export default function WritingScreen({ draft, onEnd }) {
   const duration_min = cfg.duration_min || 20;
   const min_wpm = cfg.min_wpm || 10;
   const preventCopy = cfg.prevent_copy || false;
-  const redactText = cfg.redact_text || false;
-  const dontRedactHeaders = cfg.dont_redact_headers || false;
   const inactivityEnabled = cfg.inactivity_enabled || false;
   const inactivityThresholdSec = cfg.inactivity_threshold_sec || 10;
   const useIntervals = cfg.use_intervals || false;
@@ -209,7 +196,6 @@ export default function WritingScreen({ draft, onEnd }) {
   const isEdit = intervalType === "edit";
   const isWorkMode = intervalType === "work" || (intervalType === "edit" && editWorkMode);
   const isLastInterval = intervalIndex >= intervals.length - 1;
-  const effectiveRedact = redactText && !isBreak;
   const effectivePreventCopy = preventCopy && !isBreak;
 
   // ── Start timed session when sessionMode becomes true ────────────────────
@@ -222,29 +208,24 @@ export default function WritingScreen({ draft, onEnd }) {
     document.documentElement.requestFullscreen?.().catch(() => {});
   }, [sessionMode]);
 
-  // ── End session (saves to DB, resets draft to 'draft' outcome) ───────────
+  // ── End session (saves to DB, returns to draft mode) ────────────────────
   const endSession = useCallback(async (outcomeStr) => {
     if (sessionEndedRef.current) return;
     sessionEndedRef.current = true;
 
-    const content = outcomeStr.startsWith("deleted") ? "" : textRef.current;
+    const htmlContent = htmlRef.current;
+    const textContent = textRef.current;
     const elapsed = sessionStartRef.current
       ? Math.floor((Date.now() - sessionStartRef.current) / 1000)
       : 0;
-    const words = countWords(content);
+    const words = countWords(textContent);
     const wpm = elapsed > 0 ? Math.round((words * 60) / elapsed) : 0;
-
-    if (outcomeStr.startsWith("deleted") && mainEditRef.current) {
-      mainEditRef.current.value = "";
-      textRef.current = "";
-    }
-
-    setOutcome(outcomeStr);
+    const outcomeForSave = "completed";
 
     try {
       await api.endSession(sessionIdRef.current, {
-        outcome: outcomeStr,
-        content,
+        outcome: outcomeForSave,
+        content: htmlContent,
         organizer_text: organizerRef.current,
         word_count: words,
         wpm_at_end: wpm,
@@ -253,6 +234,12 @@ export default function WritingScreen({ draft, onEnd }) {
     } catch {}
 
     document.exitFullscreen?.().catch(() => {});
+    setSessionMode(false);
+    setEditWorkMode(false);
+    setIntervalIndex(0);
+    setDisplayTime(0);
+    setDisplayWpm(0);
+    setSidebarColor("#FFFFFF");
   }, []);
 
   // ── startIntervalAt ───────────────────────────────────────────────────────
@@ -276,27 +263,20 @@ export default function WritingScreen({ draft, onEnd }) {
     setEditWorkMode(false);
     breakExpiredRef.current = false;
 
-    const currentText = mainEditRef.current ? mainEditRef.current.value : textRef.current;
+    const currentText = textRef.current;
     const currentWords = countWords(currentText);
     const currentChars = currentText.length;
     baselineWordsRef.current = currentWords;
     hasTypedRef.current = currentChars > 0;
     lastCharCountRef.current = currentChars;
     inactivitySecRef.current = 0;
-
-    if (config.redact_text) {
-      setMaskedText(maskText(currentText, config.dont_redact_headers));
-    } else {
-      setMaskedText("");
-    }
   }, []);
 
   // ── Key blocker ───────────────────────────────────────────────────────────
   useEffect(() => {
-    if (!sessionMode || outcome) return;
+    if (!sessionMode) return;
 
     function onKeyDown(e) {
-      if (outcome) return;
       if (BLOCKED_KEYS.has(e.key)) { e.preventDefault(); return; }
       if (effectivePreventCopy && (e.ctrlKey || e.metaKey) && (e.key === "c" || e.key === "v" || e.key === "x")) {
         e.preventDefault();
@@ -304,7 +284,7 @@ export default function WritingScreen({ draft, onEnd }) {
     }
     window.addEventListener("keydown", onKeyDown, true);
     return () => window.removeEventListener("keydown", onKeyDown, true);
-  }, [sessionMode, outcome, effectivePreventCopy]);
+  }, [sessionMode, effectivePreventCopy]);
 
   // ── Copy blocker ──────────────────────────────────────────────────────────
   useEffect(() => {
@@ -316,7 +296,7 @@ export default function WritingScreen({ draft, onEnd }) {
 
   // ── Main ticker (session mode only) ──────────────────────────────────────
   useEffect(() => {
-    if (!sessionMode || outcome) return;
+    if (!sessionMode) return;
 
     const timer = setInterval(() => {
       if (sessionEndedRef.current) return;
@@ -326,8 +306,6 @@ export default function WritingScreen({ draft, onEnd }) {
       const minWpmLocal = config.min_wpm || 10;
       const inactEnabled = config.inactivity_enabled || false;
       const inactThreshold = config.inactivity_threshold_sec || 10;
-      const redact = config.redact_text || false;
-      const dontRedact = config.dont_redact_headers || false;
 
       const useIntervalsLocal = config.use_intervals || false;
       const intervalConfigLocal = config.intervals || [];
@@ -360,8 +338,9 @@ export default function WritingScreen({ draft, onEnd }) {
 
       setDisplayTime(remaining);
 
-      const charCount = mainEditRef.current ? mainEditRef.current.value.length : textRef.current.length;
-      const wordCount = countWords(mainEditRef.current ? mainEditRef.current.value : textRef.current);
+      // Use textRef.current (plain text kept in sync by handleRichEditorChange)
+      const charCount = textRef.current.length;
+      const wordCount = countWords(textRef.current);
       const wpmElapsedSec = wpmStartRef.current ? Math.floor((Date.now() - wpmStartRef.current) / 1000) : 0;
       const netWords = Math.max(0, wordCount - baselineWordsRef.current);
       const wpm = wpmElapsedSec > 0 ? Math.round((netWords * 60) / wpmElapsedSec) : 0;
@@ -390,10 +369,10 @@ export default function WritingScreen({ draft, onEnd }) {
       autosaveTickRef.current += 1;
       if (autosaveTickRef.current >= 2 && sessionIdRef.current) {
         autosaveTickRef.current = 0;
-        const currentText = mainEditRef.current ? mainEditRef.current.value : textRef.current;
+        const htmlContent = htmlRef.current;
         const totalElapsed = sessionStartRef.current ? Math.floor((Date.now() - sessionStartRef.current) / 1000) : 0;
         api.patchSession(sessionIdRef.current, {
-          content: currentText,
+          content: htmlContent,
           organizer_text: organizerRef.current,
           word_count: wordCount,
           wpm_at_end: wpm,
@@ -403,27 +382,7 @@ export default function WritingScreen({ draft, onEnd }) {
     }, 1000);
 
     return () => clearInterval(timer);
-  }, [sessionMode, outcome, intervalIndex, editWorkMode, endSession, startIntervalAt]);
-
-  // ── Outcome overlay ───────────────────────────────────────────────────────
-  if (outcome) {
-    const msgs = {
-      completed: { title: "Session complete!", color: "#111", desc: "Your writing has been saved." },
-      deleted_inactivity: { title: "Too slow — deleted.", color: "#FF0000", desc: "You stopped typing for too long. Everything is gone." },
-      deleted_wpm: { title: "Below minimum WPM — deleted.", color: "#FF0000", desc: "Your words per minute dropped too low. Everything is gone." },
-      deleted_abandoned: { title: "Deleted — Abandoned.", color: "#FF0000", desc: "You ended the session. Everything is gone." },
-    };
-    const m = msgs[outcome] || { title: outcome, color: "#111", desc: "" };
-    return (
-      <div style={overlay}>
-        <div style={overlayCard}>
-          <div style={{ fontSize: 24, fontWeight: 700, color: m.color, marginBottom: 12 }}>{m.title}</div>
-          <div style={{ fontSize: 15, color: "#555", marginBottom: 28 }}>{m.desc}</div>
-          <button style={btnRed} onClick={onEnd}>Back to Drafts</button>
-        </div>
-      </div>
-    );
-  }
+  }, [sessionMode, intervalIndex, editWorkMode, endSession, startIntervalAt]);
 
   // ── Shared editor area (used in both modes) ───────────────────────────────
   const topBarH = 48;
@@ -443,17 +402,11 @@ export default function WritingScreen({ draft, onEnd }) {
         ) : (
           outlineItems.map((h, idx) => (
             <button
-              key={`${h.index}-${idx}`}
+              key={`${h.pos}-${idx}`}
               onClick={() => {
-                const textarea = mainEditRef.current;
-                if (!textarea) return;
-                const lineNum = textarea.value.slice(0, h.index).split("\n").length - 1;
-                const lineHeight = getLineHeightPx(textarea);
-                textarea.focus();
-                textarea.setSelectionRange(h.index, h.index);
-                const targetTop = Math.max(0, lineNum * lineHeight - textarea.clientHeight * 0.2);
-                textarea.scrollTop = targetTop;
-                if (overlayRef.current) overlayRef.current.scrollTop = targetTop;
+                const tiptapEditor = editorRef.current?.getEditor();
+                if (!tiptapEditor || h.pos == null) return;
+                tiptapEditor.chain().focus().setTextSelection(h.pos).scrollIntoView().run();
               }}
               style={{ display: "block", width: "100%", textAlign: "left", fontSize: 13, color: "#444", background: "transparent", border: "none", padding: "4px 6px", marginLeft: (h.level - 1) * 10, cursor: "pointer" }}
               title={h.text}
@@ -464,47 +417,15 @@ export default function WritingScreen({ draft, onEnd }) {
         )}
       </div>
 
-      {/* Main editor */}
-      <div style={{ position: "relative", flex: 1, height: "100%" }}>
-        {effectiveRedact && (
-          <div
-            ref={overlayRef}
-            style={{
-              position: "absolute", inset: 0, overflow: "hidden", padding: "16px 20px",
-              fontSize: 24, fontFamily: "Courier New, monospace", lineHeight: 1.7,
-              whiteSpace: "pre-wrap", wordBreak: "break-word",
-              color: maskedText ? "#111" : "#aaa", pointerEvents: "none",
-            }}
-          >
-            {maskedText || "Start writing…"}
-          </div>
-        )}
-        <textarea
-          ref={mainEditRef}
-          autoFocus
-          className={effectiveRedact ? "redacted-editor" : undefined}
-          onChange={(e) => {
-            textRef.current = e.target.value;
-            setOutlineItems(extractHeaders(e.target.value));
-            if (effectiveRedact) setMaskedText(maskText(e.target.value, dontRedactHeaders));
-            if (!sessionMode) scheduleDraftSave(e.target.value);
-          }}
-          onScroll={() => {
-            if (overlayRef.current && mainEditRef.current) {
-              overlayRef.current.scrollTop = mainEditRef.current.scrollTop;
-              overlayRef.current.scrollLeft = mainEditRef.current.scrollLeft;
-            }
-          }}
-          placeholder={effectiveRedact ? "" : "Start writing…"}
-          style={{
-            flex: 1, height: "100%", width: "100%", resize: "none", border: "none",
-            padding: "16px 20px", fontSize: 24,
-            fontFamily: effectiveRedact ? "Courier New, monospace" : "inherit",
-            outline: "none", lineHeight: 1.7, caretColor: "#111",
-            background: effectiveRedact ? "transparent" : "#fff",
-          }}
-        />
-      </div>
+      {/* Main editor — RichEditor includes its own toolbar */}
+      <RichEditor
+        ref={editorRef}
+        initialContent={draft.content}
+        onChange={handleRichEditorChange}
+        onReady={handleEditorReady}
+        placeholder="Start writing…"
+        autoFocus
+      />
 
       {/* Right pad */}
       <div style={{ width: RIGHT_PAD_W, flexShrink: 0, background: sidebarColor, transition: "background 0.4s" }} />
@@ -588,13 +509,11 @@ export default function WritingScreen({ draft, onEnd }) {
               onClick={() => {
                 setEditWorkMode(true);
                 wpmStartRef.current = Date.now();
-                const currentText = mainEditRef.current ? mainEditRef.current.value : textRef.current;
-                baselineWordsRef.current = countWords(currentText);
-                const chars = currentText.length;
+                baselineWordsRef.current = countWords(textRef.current);
+                const chars = textRef.current.length;
                 hasTypedRef.current = chars > 0;
                 lastCharCountRef.current = chars;
                 inactivitySecRef.current = 0;
-                if (redactText) setMaskedText(maskText(currentText, dontRedactHeaders));
               }}
             >
               Switch to Work
@@ -625,15 +544,3 @@ export default function WritingScreen({ draft, onEnd }) {
 }
 
 // ── shared styles ──────────────────────────────────────────────────────────
-const overlay = {
-  position: "fixed", inset: 0, display: "flex", alignItems: "center", justifyContent: "center",
-  background: "rgba(255,255,255,0.96)", zIndex: 9999,
-};
-const overlayCard = {
-  textAlign: "center", padding: "48px 56px", border: "1px solid #ddd", borderRadius: 10,
-  boxShadow: "0 4px 32px rgba(0,0,0,0.10)", background: "#fff", maxWidth: 440,
-};
-const btnRed = {
-  padding: "12px 32px", fontSize: 15, fontWeight: 700,
-  background: "#FF2020", color: "#fff", border: "none", borderRadius: 6, cursor: "pointer",
-};

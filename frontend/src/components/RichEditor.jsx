@@ -3,6 +3,7 @@ import { Extension } from "@tiptap/core";
 import { Plugin, PluginKey } from "@tiptap/pm/state";
 import { Decoration, DecorationSet } from "@tiptap/pm/view";
 import StarterKit from "@tiptap/starter-kit";
+import Heading from "@tiptap/extension-heading";
 import Link from "@tiptap/extension-link";
 import Underline from "@tiptap/extension-underline";
 import Placeholder from "@tiptap/extension-placeholder";
@@ -107,6 +108,11 @@ function Divider() {
 // ─── RichEditor ───────────────────────────────────────────────────────────────
 
 const redactPluginKey = new PluginKey("redact-letters");
+const collapsibleHeadingKey = new PluginKey("collapsible-headings");
+
+function isCollapsedAttr(value) {
+  return value === true || value === "true";
+}
 
 function buildRedactionDecorations(doc, allowHeaders) {
   const decorations = [];
@@ -170,6 +176,128 @@ function createRedactionExtension(settingsRef) {
   });
 }
 
+function toggleHeadingCollapsed(view, pos) {
+  const node = view.state.doc.nodeAt(pos);
+  if (!node || node.type.name !== "heading") return;
+  const collapsed = isCollapsedAttr(node.attrs.collapsed);
+  const nextAttrs = { ...node.attrs, collapsed: !collapsed };
+  const tr = view.state.tr.setNodeMarkup(pos, undefined, nextAttrs);
+  view.dispatch(tr);
+  view.focus();
+}
+
+function buildCollapsibleDecorations(doc) {
+  const decorations = [];
+  const headings = [];
+
+  doc.descendants((node, pos) => {
+    if (node.type.name === "heading") {
+      headings.push({ node, pos });
+    }
+  });
+
+  for (let i = 0; i < headings.length; i += 1) {
+    const { node, pos } = headings[i];
+    const collapsed = isCollapsedAttr(node.attrs.collapsed);
+
+    const widget = Decoration.widget(
+      pos + 1,
+      (view) => {
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.className = `heading-toggle${collapsed ? " is-collapsed" : ""}`;
+        btn.setAttribute(
+          "aria-label",
+          collapsed ? "Expand section" : "Collapse section"
+        );
+        btn.addEventListener("mousedown", (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+        });
+        btn.addEventListener("click", (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          toggleHeadingCollapsed(view, pos);
+        });
+        return btn;
+      },
+      { side: -1 }
+    );
+    decorations.push(widget);
+  }
+
+  const headingStack = [];
+
+  doc.descendants((node, pos, parent) => {
+    if (!node.isBlock) return;
+    if (parent !== doc) return; // only direct children of the document
+
+    if (node.type.name === "heading") {
+      const anyCollapsed = headingStack.some((entry) => entry.collapsed);
+      if (anyCollapsed) {
+        decorations.push(
+          Decoration.node(pos, pos + node.nodeSize, {
+            class: "heading-collapsed-block",
+          })
+        );
+      }
+      const level = node.attrs.level || 1;
+      while (headingStack.length && headingStack[headingStack.length - 1].level >= level) {
+        headingStack.pop();
+      }
+      headingStack.push({ level, collapsed: isCollapsedAttr(node.attrs.collapsed) });
+      return false;
+    }
+
+    if (headingStack.length === 0) return;
+    const anyCollapsed = headingStack.some((entry) => entry.collapsed);
+    if (anyCollapsed) {
+      decorations.push(
+        Decoration.node(pos, pos + node.nodeSize, {
+          class: "heading-collapsed-block",
+        })
+      );
+    }
+  });
+
+  return DecorationSet.create(doc, decorations);
+}
+
+const CollapsibleHeading = Heading.extend({
+  addAttributes() {
+    return {
+      ...this.parent?.(),
+      collapsed: {
+        default: false,
+        rendered: false,
+      },
+    };
+  },
+});
+
+const CollapsibleHeadingDecorations = Extension.create({
+  name: "collapsibleHeadings",
+  addProseMirrorPlugins() {
+    return [
+      new Plugin({
+        key: collapsibleHeadingKey,
+        state: {
+          init: (_config, state) => buildCollapsibleDecorations(state.doc),
+          apply: (tr, value, _oldState, newState) => {
+            if (!tr.docChanged && !tr.getMeta(collapsibleHeadingKey)) return value;
+            return buildCollapsibleDecorations(newState.doc);
+          },
+        },
+        props: {
+          decorations(state) {
+            return this.getState(state);
+          },
+        },
+      }),
+    ];
+  },
+});
+
 const RichEditor = forwardRef(function RichEditor(
   { initialContent, onChange, onReady, placeholder, autoFocus, style, redactText, dontRedactHeaders },
   ref
@@ -190,7 +318,11 @@ const RichEditor = forwardRef(function RichEditor(
 
   const editor = useEditor({
     extensions: [
-      StarterKit,
+      StarterKit.configure({
+        heading: false,
+      }),
+      CollapsibleHeading,
+      CollapsibleHeadingDecorations,
       createRedactionExtension(redactionSettingsRef),
       Link.configure({
         openOnClick: false,
@@ -208,7 +340,7 @@ const RichEditor = forwardRef(function RichEditor(
       }),
     ],
     content: toHtml(initialContent),
-    autofocus: autoFocus ? "end" : false,
+    autofocus: autoFocus ? "start" : false,
     onCreate({ editor }) {
       onReadyRef.current?.(editor);
     },

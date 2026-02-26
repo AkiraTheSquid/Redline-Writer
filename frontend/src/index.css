@@ -92,6 +92,43 @@ button {
   border-radius: 7px;
 }
 
+.rich-editor-scroll .ProseMirror .heading-toggle {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: 1px solid #d2d2d2;
+  background: #e8e8e8;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: 6px;
+  padding: 0;
+  vertical-align: middle;
+  cursor: pointer;
+}
+
+.rich-editor-scroll .ProseMirror .heading-toggle::before {
+  content: "";
+  width: 0;
+  height: 0;
+  border-left: 5px solid transparent;
+  border-right: 5px solid transparent;
+  border-top: 8px solid #666;
+  transform: translateY(1px);
+}
+
+.rich-editor-scroll .ProseMirror .heading-toggle.is-collapsed::before {
+  border: none;
+  border-top: 5px solid transparent;
+  border-bottom: 5px solid transparent;
+  border-left: 8px solid #666;
+  transform: translateX(1px);
+}
+
+.rich-editor-scroll .ProseMirror .heading-collapsed-block {
+  display: none;
+}
+
 /* Paragraphs */
 .rich-editor-scroll .ProseMirror p {
   margin: 0 0 0.4em;

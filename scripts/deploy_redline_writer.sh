@@ -52,6 +52,13 @@ git -C "$REPO_DIR" push origin main
 
 # --- Step 3: Merge main into deploy worktree ---
 
+info "Checking deploy worktree for uncommitted changes..."
+if ! git -C "$DEPLOY_DIR" diff --quiet || ! git -C "$DEPLOY_DIR" diff --cached --quiet; then
+  warn "Uncommitted changes detected in deploy worktree — stashing before merge."
+  git -C "$DEPLOY_DIR" stash push -u -m "deploy_redline_writer auto-stash $(date '+%Y-%m-%d %H:%M:%S')"
+  warn "Deploy changes stashed. To review later: git -C \"$DEPLOY_DIR\" stash list"
+fi
+
 info "Merging main into deploy branch..."
 git -C "$DEPLOY_DIR" checkout deploy
 git -C "$DEPLOY_DIR" merge main --no-edit

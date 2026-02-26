@@ -218,7 +218,7 @@ export default function SettingsModal({ initialConfig, mode, onSubmit, onClose }
 
           <label style={S.label}>Minimum WPM</label>
           <input style={S.input} type="number" min="1" value={minWpm} onChange={(e) => setMinWpm(e.target.value)} />
-          <div style={S.hint}>Enforced after the first 60 seconds.</div>
+          <div style={S.hint}>Enforced after the first 10 seconds.</div>
 
           <label style={S.label}>Organizer / notes (optional)</label>
           <textarea

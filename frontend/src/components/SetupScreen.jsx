@@ -277,7 +277,7 @@ export default function SetupScreen({ onStart, onHistory }) {
             value={minWpm}
             onChange={(e) => setMinWpm(e.target.value)}
           />
-          <div style={S.hint}>Enforced after the first 60 seconds.</div>
+          <div style={S.hint}>Enforced after the first 10 seconds.</div>
 
           <label style={S.label}>Organizer / notes (optional)</label>
           <textarea

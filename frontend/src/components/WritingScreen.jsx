@@ -383,7 +383,7 @@ export default function WritingScreen({ draft, onEnd }) {
           if (inactivitySecRef.current >= threshold) { clearInterval(timer); endSession("deleted_inactivity"); return; }
         }
 
-        if (wpmElapsedSec >= 60 && wpm < minWpmLocal) { clearInterval(timer); endSession("deleted_wpm"); return; }
+        if (wpmElapsedSec >= 10 && wpm < minWpmLocal) { clearInterval(timer); endSession("deleted_wpm"); return; }
       }
 
       // Autosave every 2 ticks

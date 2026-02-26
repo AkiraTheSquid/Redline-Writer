@@ -1,4 +1,7 @@
 import { useEditor, EditorContent } from "@tiptap/react";
+import { Extension } from "@tiptap/core";
+import { Plugin, PluginKey } from "@tiptap/pm/state";
+import { Decoration, DecorationSet } from "@tiptap/pm/view";
 import StarterKit from "@tiptap/starter-kit";
 import Link from "@tiptap/extension-link";
 import Underline from "@tiptap/extension-underline";
@@ -103,12 +106,81 @@ function Divider() {
 
 // ─── RichEditor ───────────────────────────────────────────────────────────────
 
+const redactPluginKey = new PluginKey("redact-letters");
+
+function buildRedactionDecorations(doc, allowHeaders) {
+  const decorations = [];
+  doc.descendants((node, pos) => {
+    if (!node.isText || !node.text) return;
+    if (allowHeaders) {
+      const parent = doc.resolve(pos).parent;
+      if (parent && parent.type.name === "heading") return;
+    }
+    const text = node.text;
+    let match;
+    const regex = /[A-Za-z]+/g;
+    while ((match = regex.exec(text)) !== null) {
+      const from = pos + match.index;
+      const to = from + match[0].length;
+      decorations.push(Decoration.inline(from, to, { class: "redact-letter" }));
+    }
+  });
+  return DecorationSet.create(doc, decorations);
+}
+
+function createRedactionExtension(settingsRef) {
+  return Extension.create({
+    name: "redactLetters",
+    addProseMirrorPlugins() {
+      return [
+        new Plugin({
+          key: redactPluginKey,
+          state: {
+            init: (_, state) => {
+              const settings = settingsRef.current;
+              if (!settings.enabled) {
+                return { deco: DecorationSet.empty, version: settings.version };
+              }
+              return {
+                deco: buildRedactionDecorations(state.doc, settings.allowHeaders),
+                version: settings.version,
+              };
+            },
+            apply: (tr, value, _oldState, newState) => {
+              const settings = settingsRef.current;
+              const needsRebuild = tr.docChanged || settings.version !== value.version;
+              if (!needsRebuild) return value;
+              if (!settings.enabled) {
+                return { deco: DecorationSet.empty, version: settings.version };
+              }
+              return {
+                deco: buildRedactionDecorations(newState.doc, settings.allowHeaders),
+                version: settings.version,
+              };
+            },
+          },
+          props: {
+            decorations(state) {
+              return this.getState(state).deco;
+            },
+          },
+        }),
+      ];
+    },
+  });
+}
+
 const RichEditor = forwardRef(function RichEditor(
-  { initialContent, onChange, onReady, placeholder, autoFocus, style },
+  { initialContent, onChange, onReady, placeholder, autoFocus, style, redactText, dontRedactHeaders },
   ref
 ) {
   const [showLinkInput, setShowLinkInput] = useState(false);
   const [linkUrl, setLinkUrl] = useState("");
+  const redactionSettingsRef = useRef({
+    enabled: !!redactText,
+    allowHeaders: !!dontRedactHeaders,
+    version: 0,
+  });
 
   // Keep latest callbacks in refs so TipTap's stale closure always calls current versions
   const onChangeRef = useRef(onChange);
@@ -119,6 +191,7 @@ const RichEditor = forwardRef(function RichEditor(
   const editor = useEditor({
     extensions: [
       StarterKit,
+      createRedactionExtension(redactionSettingsRef),
       Link.configure({
         openOnClick: false,
         autolink: true,
@@ -145,6 +218,20 @@ const RichEditor = forwardRef(function RichEditor(
       onChangeRef.current?.(html, text);
     },
   });
+
+  useEffect(() => {
+    const nextEnabled = !!redactText;
+    const nextAllowHeaders = !!dontRedactHeaders;
+    const settings = redactionSettingsRef.current;
+    if (settings.enabled !== nextEnabled || settings.allowHeaders !== nextAllowHeaders) {
+      redactionSettingsRef.current = {
+        enabled: nextEnabled,
+        allowHeaders: nextAllowHeaders,
+        version: settings.version + 1,
+      };
+      editor?.view?.dispatch(editor.state.tr);
+    }
+  }, [redactText, dontRedactHeaders, editor]);
 
   // Expose imperative API to parent via ref
   useImperativeHandle(ref, () => ({

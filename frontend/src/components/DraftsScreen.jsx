@@ -137,7 +137,7 @@ export default function DraftsScreen({ onOpen, onSignOut, authEnabled }) {
               flexShrink: 0,
             }}
           >
-            Start Session
+            View Draft
           </button>
           <button
             onClick={() => handleDelete(draft.id)}

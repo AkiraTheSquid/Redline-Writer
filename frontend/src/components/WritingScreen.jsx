@@ -97,6 +97,7 @@ export default function WritingScreen({ draft, onEnd }) {
   const [displayWpm, setDisplayWpm] = useState(0);
   const [displayTime, setDisplayTime] = useState(0);
   const [sidebarColor, setSidebarColor] = useState("#FFFFFF");
+  const [outcome, setOutcome] = useState(null);
   const [outlineItems, setOutlineItems] = useState([]);
   const [intervalIndex, setIntervalIndex] = useState(0);
   const [editWorkMode, setEditWorkMode] = useState(false);
@@ -181,6 +182,8 @@ export default function WritingScreen({ draft, onEnd }) {
   const duration_min = cfg.duration_min || 20;
   const min_wpm = cfg.min_wpm || 10;
   const preventCopy = cfg.prevent_copy || false;
+  const redactText = cfg.redact_text || false;
+  const dontRedactHeaders = cfg.dont_redact_headers || false;
   const inactivityEnabled = cfg.inactivity_enabled || false;
   const inactivityThresholdSec = cfg.inactivity_threshold_sec || 10;
   const useIntervals = cfg.use_intervals || false;
@@ -200,7 +203,7 @@ export default function WritingScreen({ draft, onEnd }) {
 
   // ── Start timed session when sessionMode becomes true ────────────────────
   useEffect(() => {
-    if (!sessionMode) return;
+    if (!sessionMode || outcome) return;
     baselineWordsRef.current = countWords(textRef.current);
     sessionEndedRef.current = false;
     sessionStartRef.current = Date.now();
@@ -212,6 +215,21 @@ export default function WritingScreen({ draft, onEnd }) {
   const endSession = useCallback(async (outcomeStr) => {
     if (sessionEndedRef.current) return;
     sessionEndedRef.current = true;
+
+    if (outcomeStr.startsWith("deleted")) {
+      try {
+        await api.deleteSession(sessionIdRef.current);
+      } catch {}
+      document.exitFullscreen?.().catch(() => {});
+      setSessionMode(false);
+      setEditWorkMode(false);
+      setIntervalIndex(0);
+      setDisplayTime(0);
+      setDisplayWpm(0);
+      setSidebarColor("#FFFFFF");
+      setOutcome(outcomeStr);
+      return;
+    }
 
     const htmlContent = htmlRef.current;
     const textContent = textRef.current;
@@ -284,7 +302,7 @@ export default function WritingScreen({ draft, onEnd }) {
     }
     window.addEventListener("keydown", onKeyDown, true);
     return () => window.removeEventListener("keydown", onKeyDown, true);
-  }, [sessionMode, effectivePreventCopy]);
+  }, [sessionMode, outcome, effectivePreventCopy]);
 
   // ── Copy blocker ──────────────────────────────────────────────────────────
   useEffect(() => {
@@ -296,7 +314,7 @@ export default function WritingScreen({ draft, onEnd }) {
 
   // ── Main ticker (session mode only) ──────────────────────────────────────
   useEffect(() => {
-    if (!sessionMode) return;
+    if (!sessionMode || outcome) return;
 
     const timer = setInterval(() => {
       if (sessionEndedRef.current) return;
@@ -382,7 +400,37 @@ export default function WritingScreen({ draft, onEnd }) {
     }, 1000);
 
     return () => clearInterval(timer);
-  }, [sessionMode, intervalIndex, editWorkMode, endSession, startIntervalAt]);
+  }, [sessionMode, outcome, intervalIndex, editWorkMode, endSession, startIntervalAt]);
+
+  // ── Deletion overlay ─────────────────────────────────────────────────────
+  if (outcome && outcome.startsWith("deleted")) {
+    const msgs = {
+      deleted_inactivity: {
+        title: "Draft deleted.",
+        desc: "You stopped typing for too long. Everything was deleted.",
+      },
+      deleted_wpm: {
+        title: "Draft deleted.",
+        desc: "Your words per minute dropped too low. Everything was deleted.",
+      },
+      deleted_abandoned: {
+        title: "Draft deleted.",
+        desc: "You abandoned the session. Everything was deleted.",
+      },
+    };
+    const m = msgs[outcome] || { title: "Draft deleted.", desc: "This draft was deleted." };
+    return (
+      <div style={overlay}>
+        <div style={overlayCard}>
+          <div style={{ fontSize: 24, fontWeight: 700, color: "#FF0000", marginBottom: 12 }}>
+            {m.title}
+          </div>
+          <div style={{ fontSize: 15, color: "#555", marginBottom: 28 }}>{m.desc}</div>
+          <button style={btnRed} onClick={onEnd}>Next</button>
+        </div>
+      </div>
+    );
+  }
 
   // ── Shared editor area (used in both modes) ───────────────────────────────
   const topBarH = 48;
@@ -425,6 +473,8 @@ export default function WritingScreen({ draft, onEnd }) {
         onReady={handleEditorReady}
         placeholder="Start writing…"
         autoFocus
+        redactText={sessionMode && redactText}
+        dontRedactHeaders={dontRedactHeaders}
       />
 
       {/* Right pad */}
@@ -532,7 +582,7 @@ export default function WritingScreen({ draft, onEnd }) {
               style={{ fontSize: 12, padding: "4px 12px", border: "1px solid #ccc", borderRadius: 4, background: "#fff", color: "#888" }}
               onClick={() => endSession("deleted_abandoned")}
             >
-              Abandon Session
+              Abandon Session (Deletes the Draft)
             </button>
           )}
         </div>
@@ -544,3 +594,15 @@ export default function WritingScreen({ draft, onEnd }) {
 }
 
 // ── shared styles ──────────────────────────────────────────────────────────
+const overlay = {
+  position: "fixed", inset: 0, display: "flex", alignItems: "center", justifyContent: "center",
+  background: "rgba(255,255,255,0.96)", zIndex: 9999,
+};
+const overlayCard = {
+  textAlign: "center", padding: "48px 56px", border: "1px solid #ddd", borderRadius: 10,
+  boxShadow: "0 4px 32px rgba(0,0,0,0.10)", background: "#fff", maxWidth: 440,
+};
+const btnRed = {
+  padding: "12px 32px", fontSize: 15, fontWeight: 700,
+  background: "#FF2020", color: "#fff", border: "none", borderRadius: 6, cursor: "pointer",
+};

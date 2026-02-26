@@ -85,6 +85,13 @@ button {
   margin: 0.5em 0 0.2em;
 }
 
+.rich-editor-scroll .ProseMirror .redact-letter {
+  color: transparent;
+  background: #000;
+  box-decoration-break: clone;
+  border-radius: 7px;
+}
+
 /* Paragraphs */
 .rich-editor-scroll .ProseMirror p {
   margin: 0 0 0.4em;

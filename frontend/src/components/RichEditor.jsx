@@ -304,6 +304,7 @@ const RichEditor = forwardRef(function RichEditor(
 ) {
   const [showLinkInput, setShowLinkInput] = useState(false);
   const [linkUrl, setLinkUrl] = useState("");
+  const [wordCount, setWordCount] = useState(0);
   const redactionSettingsRef = useRef({
     enabled: !!redactText,
     allowHeaders: !!dontRedactHeaders,
@@ -342,11 +343,16 @@ const RichEditor = forwardRef(function RichEditor(
     content: toHtml(initialContent),
     autofocus: autoFocus ? "start" : false,
     onCreate({ editor }) {
+      const text = editor.getText({ blockSeparator: "\n" });
+      const trimmed = text.trim();
+      setWordCount(trimmed ? trimmed.split(/\s+/).length : 0);
       onReadyRef.current?.(editor);
     },
     onUpdate({ editor }) {
       const html = editor.getHTML();
       const text = editor.getText({ blockSeparator: "\n" });
+      const trimmed = text.trim();
+      setWordCount(trimmed ? trimmed.split(/\s+/).length : 0);
       onChangeRef.current?.(html, text);
     },
   });
@@ -447,8 +453,7 @@ const RichEditor = forwardRef(function RichEditor(
           flexWrap: "wrap",
           gap: 2,
           padding: "5px 10px",
-          borderBottom: "1px solid #eee",
-          background: "#fafafa",
+          background: "#fff",
           flexShrink: 0,
           userSelect: "none",
         }}
@@ -607,6 +612,11 @@ const RichEditor = forwardRef(function RichEditor(
             <path d="M14.017 21v-7.391c0-5.704 3.731-9.57 8.983-10.609l.995 2.151c-2.432.917-3.995 3.638-3.995 5.849h4v10h-9.983zm-14.017 0v-7.391c0-5.704 3.748-9.57 9-10.609l.996 2.151c-2.433.917-3.996 3.638-3.996 5.849h3.983v10h-9.983z" />
           </svg>
         </ToolBtn>
+
+        {/* Word count */}
+        <div style={{ marginLeft: "auto", fontSize: 12, color: "#aaa", userSelect: "none", flexShrink: 0 }}>
+          {wordCount.toLocaleString()} {wordCount === 1 ? "word" : "words"}
+        </div>
       </div>
 
       {/* ── Link popup ───────────────────────────────────────────────────── */}

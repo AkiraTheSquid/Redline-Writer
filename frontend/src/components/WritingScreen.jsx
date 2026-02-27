@@ -441,7 +441,7 @@ export default function WritingScreen({ draft, onEnd }) {
       <div style={{ width: LEFT_PAD_W, flexShrink: 0, background: sidebarColor, transition: "background 0.4s" }} />
 
       {/* Outline */}
-      <div style={{ width: OUTLINE_W, flexShrink: 0, borderRight: "1px solid #eee", padding: "12px 10px", background: "#fafafa", overflowY: "auto" }}>
+      <div style={{ width: OUTLINE_W, flexShrink: 0, padding: "12px 10px", background: "#fff", overflowY: "auto" }}>
         <div style={{ fontSize: 11, fontWeight: 700, color: "#999", marginBottom: 8, textTransform: "uppercase", letterSpacing: "0.06em" }}>
           Headers
         </div>
@@ -489,7 +489,7 @@ export default function WritingScreen({ draft, onEnd }) {
         {/* Draft mode top bar */}
         <div style={{
           height: topBarH, display: "flex", alignItems: "center", justifyContent: "space-between",
-          padding: "0 16px", background: "#fff", borderBottom: "1px solid #eee", flexShrink: 0, gap: 12,
+          padding: "0 16px", background: "#fff", flexShrink: 0, gap: 12,
         }}>
           <div style={{ display: "flex", alignItems: "center", gap: 12, flex: 1, minWidth: 0 }}>
             <button
@@ -545,7 +545,7 @@ export default function WritingScreen({ draft, onEnd }) {
       {/* Session mode top bar */}
       <div style={{
         height: topBarH, display: "flex", alignItems: "center", justifyContent: "space-between",
-        padding: "0 16px", background: "#fff", borderBottom: "1px solid #eee", flexShrink: 0, userSelect: "none",
+        padding: "0 16px", background: "#fff", flexShrink: 0, userSelect: "none",
       }}>
         <span style={{ fontSize: 18, fontWeight: 700 }}>
           WPM: {displayWpm}

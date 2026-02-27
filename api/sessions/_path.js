@@ -2,18 +2,17 @@ import { dbFetch } from "../_db.js";
 import { getUser } from "../_auth.js";
 
 export default async function handler(req, res) {
-  const { path } = req.query;
-  const segments = Array.isArray(path) ? path : (path ? [path] : []);
-  console.log("[sessions:path]", req.method, req.url, "segments=", segments);
+  const { path, action } = req.query;
+  const id = Array.isArray(path) ? path[0] : path;
+  console.log("[sessions:path]", req.method, req.url, "path=", path, "action=", action);
 
   const user = await getUser(req);
   if (!user) return res.status(401).json({ error: "Unauthorized" });
 
-  if (segments.length === 0) return res.status(404).json({ error: "Not found" });
-  const id = segments[0];
+  if (!id) return res.status(404).json({ error: "Not found" });
 
   try {
-    if (segments.length === 2 && segments[1] === "end") {
+    if (action === "end") {
       if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
 
       const {
@@ -39,8 +38,6 @@ export default async function handler(req, res) {
       if (!rows || rows.length === 0) return res.status(404).json({ error: "Session not found" });
       return res.status(200).json(rows[0]);
     }
-
-    if (segments.length !== 1) return res.status(404).json({ error: "Not found" });
 
     if (req.method === "GET") {
       const rows = await dbFetch(`/sessions?id=eq.${id}&user_id=eq.${user.id}&select=*&limit=1`);

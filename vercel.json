@@ -5,8 +5,10 @@
   "rewrites": [
     { "source": "/health",                "destination": "/api/health" },
     { "source": "/sessions",              "destination": "/api/sessions/index" },
-    { "source": "/sessions/:id/end",      "destination": "/api/sessions/:id/end" },
-    { "source": "/sessions/:id",          "destination": "/api/sessions/:id" },
+    { "source": "/sessions/:id/end",      "destination": "/api/sessions/_path?path=:id&action=end" },
+    { "source": "/sessions/:id",          "destination": "/api/sessions/_path?path=:id" },
+    { "source": "/api/sessions/:id/end",  "destination": "/api/sessions/_path?path=:id&action=end" },
+    { "source": "/api/sessions/:id",      "destination": "/api/sessions/_path?path=:id" },
     { "source": "/(.*)",                  "destination": "/index.html" }
   ]
 }

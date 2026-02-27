@@ -1,7 +1,8 @@
-import { dbFetch } from "../_db.js";
-import { getUser } from "../_auth.js";
+import { dbFetch } from "../../_db.js";
+import { getUser } from "../../_auth.js";
 
 export default async function handler(req, res) {
+  console.log("[sessions:id]", req.method, req.url);
   const user = await getUser(req);
   if (!user) return res.status(401).json({ error: "Unauthorized" });
 

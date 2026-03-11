@@ -7,14 +7,14 @@ import WritingScreen from "./components/WritingScreen.jsx";
 
 // Auth is only active in production (when Supabase env vars are present)
 const AUTH_ENABLED = !!supabase;
-const AUTH_INIT_TIMEOUT_MS = 8000;
+const AUTH_INIT_TIMEOUT_MS = 20000;
 
 export default function App() {
   const [view, setView] = useState("drafts");
   const [activeDraft, setActiveDraft] = useState(null);
   const [user, setUser] = useState(null);
   const [authLoading, setAuthLoading] = useState(AUTH_ENABLED);
-  const [authError, setAuthError] = useState("");
+  const [authStatus, setAuthStatus] = useState("");
 
   useEffect(() => {
     if (!AUTH_ENABLED) return;
@@ -33,12 +33,16 @@ export default function App() {
         const session = sessionResult?.data?.session ?? null;
         setUser(session?.user ?? null);
         setAccessToken(session?.access_token ?? null);
-        setAuthError("");
+        setAuthStatus("");
       } catch (error) {
         if (cancelled) return;
         setUser(null);
         setAccessToken(null);
-        setAuthError(error instanceof Error ? error.message : "Authentication failed to start.");
+        setAuthStatus(
+          error instanceof Error && error.message === "Authentication startup timed out."
+            ? "Still connecting to authentication. You can wait a moment and it should finish signing you in."
+            : "Authentication is taking longer than expected."
+        );
       } finally {
         if (!cancelled) setAuthLoading(false);
       }
@@ -49,7 +53,7 @@ export default function App() {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user ?? null);
       setAccessToken(session?.access_token ?? null);
-      setAuthError("");
+      setAuthStatus("");
       setAuthLoading(false);
     });
 
@@ -68,7 +72,7 @@ export default function App() {
   }
 
   if (AUTH_ENABLED && !user) {
-    return <AuthScreen initialError={authError} />;
+    return <AuthScreen initialError={authStatus} />;
   }
 
   function handleSignOut() {

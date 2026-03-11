@@ -186,6 +186,7 @@ export default function WritingScreen({ draft, onEnd }) {
   const dontRedactHeaders = cfg.dont_redact_headers || false;
   const inactivityEnabled = cfg.inactivity_enabled || false;
   const inactivityThresholdSec = cfg.inactivity_threshold_sec || 10;
+  const wpmGracePeriodSec = cfg.wpm_grace_period_sec || 10;
   const useIntervals = cfg.use_intervals || false;
   const intervalConfig = cfg.intervals || [];
 
@@ -324,6 +325,7 @@ export default function WritingScreen({ draft, onEnd }) {
       const minWpmLocal = config.min_wpm || 10;
       const inactEnabled = config.inactivity_enabled || false;
       const inactThreshold = config.inactivity_threshold_sec || 10;
+      const wpmGracePeriod = config.wpm_grace_period_sec || 10;
 
       const useIntervalsLocal = config.use_intervals || false;
       const intervalConfigLocal = config.intervals || [];
@@ -380,7 +382,7 @@ export default function WritingScreen({ draft, onEnd }) {
           if (inactivitySecRef.current >= threshold) { clearInterval(timer); endSession("deleted_inactivity"); return; }
         }
 
-        if (wpmElapsedSec >= 10 && wpm < minWpmLocal) { clearInterval(timer); endSession("deleted_wpm"); return; }
+        if (wpmElapsedSec >= wpmGracePeriod && wpm < minWpmLocal) { clearInterval(timer); endSession("deleted_wpm"); return; }
       }
 
       // Autosave every 2 ticks
@@ -549,7 +551,7 @@ export default function WritingScreen({ draft, onEnd }) {
       }}>
         <span style={{ fontSize: 18, fontWeight: 700 }}>
           WPM: {displayWpm}
-          <span style={{ color: "#FF0000", fontSize: 13, marginLeft: 8 }}>(min {min_wpm})</span>
+          <span style={{ color: "#FF0000", fontSize: 13, marginLeft: 8 }}>(min {min_wpm} after {wpmGracePeriodSec}s)</span>
         </span>
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
           <span style={{ fontSize: 17, fontWeight: 600, color: "#111" }}>{formatTime(displayTime)}</span>

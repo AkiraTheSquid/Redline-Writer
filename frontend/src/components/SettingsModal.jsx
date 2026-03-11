@@ -72,6 +72,14 @@ export default function SettingsModal({ initialConfig, mode, onSubmit, onClose }
   const [inactivityUnit, setInactivityUnit] = useState(
     cfg.inactivity_threshold_sec >= 60 ? "minutes" : "seconds"
   );
+  const [wpmDelayValue, setWpmDelayValue] = useState(
+    cfg.wpm_grace_period_sec
+      ? String(cfg.wpm_grace_period_sec >= 60 ? cfg.wpm_grace_period_sec / 60 : cfg.wpm_grace_period_sec)
+      : "10"
+  );
+  const [wpmDelayUnit, setWpmDelayUnit] = useState(
+    cfg.wpm_grace_period_sec >= 60 ? "minutes" : "seconds"
+  );
   const [error, setError] = useState("");
 
   function handleSubmit(e) {
@@ -81,8 +89,10 @@ export default function SettingsModal({ initialConfig, mode, onSubmit, onClose }
     const dur = parseInt(durationMin, 10);
     const wpm = parseInt(minWpm, 10);
     const inactVal = parseInt(inactivityValue, 10);
+    const wpmDelay = parseInt(wpmDelayValue, 10);
 
     if (!wpm || wpm <= 0) return setError("Min WPM must be a positive number.");
+    if (!wpmDelay || wpmDelay <= 0) return setError("WPM enforcement delay must be a positive number.");
     if (inactivityEnabled && (!inactVal || inactVal <= 0)) {
       return setError("Inactivity threshold must be a positive number.");
     }
@@ -112,6 +122,7 @@ export default function SettingsModal({ initialConfig, mode, onSubmit, onClose }
       inactivity_threshold_sec: inactivityEnabled
         ? (inactivityUnit === "minutes" ? inactVal * 60 : inactVal)
         : 0,
+      wpm_grace_period_sec: wpmDelayUnit === "minutes" ? wpmDelay * 60 : wpmDelay,
       use_intervals: useIntervals,
       intervals: useIntervals ? intervals : [],
     });
@@ -218,7 +229,25 @@ export default function SettingsModal({ initialConfig, mode, onSubmit, onClose }
 
           <label style={S.label}>Minimum WPM</label>
           <input style={S.input} type="number" min="1" value={minWpm} onChange={(e) => setMinWpm(e.target.value)} />
-          <div style={S.hint}>Enforced after the first 10 seconds.</div>
+          <label style={S.label}>WPM enforcement delay</label>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+            <input
+              style={{ ...S.input, width: 90 }}
+              type="number"
+              min="1"
+              value={wpmDelayValue}
+              onChange={(e) => setWpmDelayValue(e.target.value)}
+            />
+            <select
+              value={wpmDelayUnit}
+              onChange={(e) => setWpmDelayUnit(e.target.value)}
+              style={{ fontSize: 14, padding: "9px 12px", border: "1px solid #ccc", borderRadius: 5 }}
+            >
+              <option value="seconds">seconds</option>
+              <option value="minutes">minutes</option>
+            </select>
+          </div>
+          <div style={S.hint}>How long to wait before low WPM starts deleting the draft.</div>
 
           <label style={S.label}>Organizer / notes (optional)</label>
           <textarea

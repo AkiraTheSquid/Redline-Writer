@@ -7,7 +7,7 @@ import WritingScreen from "./components/WritingScreen.jsx";
 
 // Auth is only active in production (when Supabase env vars are present)
 const AUTH_ENABLED = !!supabase;
-const AUTH_INIT_TIMEOUT_MS = 20000;
+const AUTH_STATUS_DELAY_MS = 10000;
 
 export default function App() {
   const [view, setView] = useState("drafts");
@@ -20,15 +20,15 @@ export default function App() {
     if (!AUTH_ENABLED) return;
 
     let cancelled = false;
+    const statusTimer = window.setTimeout(() => {
+      if (!cancelled) {
+        setAuthStatus("Still connecting to authentication. You can wait a moment and it should finish signing you in.");
+      }
+    }, AUTH_STATUS_DELAY_MS);
 
     async function initializeAuth() {
       try {
-        const sessionResult = await Promise.race([
-          supabase.auth.getSession(),
-          new Promise((_, reject) => {
-            window.setTimeout(() => reject(new Error("Authentication startup timed out.")), AUTH_INIT_TIMEOUT_MS);
-          }),
-        ]);
+        const sessionResult = await supabase.auth.getSession();
         if (cancelled) return;
         const session = sessionResult?.data?.session ?? null;
         setUser(session?.user ?? null);
@@ -38,12 +38,9 @@ export default function App() {
         if (cancelled) return;
         setUser(null);
         setAccessToken(null);
-        setAuthStatus(
-          error instanceof Error && error.message === "Authentication startup timed out."
-            ? "Still connecting to authentication. You can wait a moment and it should finish signing you in."
-            : "Authentication is taking longer than expected."
-        );
+        setAuthStatus("Authentication is taking longer than expected.");
       } finally {
+        window.clearTimeout(statusTimer);
         if (!cancelled) setAuthLoading(false);
       }
     }
@@ -51,6 +48,7 @@ export default function App() {
     initializeAuth();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      window.clearTimeout(statusTimer);
       setUser(session?.user ?? null);
       setAccessToken(session?.access_token ?? null);
       setAuthStatus("");
@@ -59,14 +57,16 @@ export default function App() {
 
     return () => {
       cancelled = true;
+      window.clearTimeout(statusTimer);
       subscription.unsubscribe();
     };
   }, []);
 
   if (authLoading) {
     return (
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100%", color: "#888", fontSize: 15 }}>
-        Loading…
+      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 10, height: "100%", color: "#888", fontSize: 15 }}>
+        <div>Loading…</div>
+        {authStatus && <div style={{ fontSize: 13 }}>{authStatus}</div>}
       </div>
     );
   }

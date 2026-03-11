@@ -7,28 +7,56 @@ import WritingScreen from "./components/WritingScreen.jsx";
 
 // Auth is only active in production (when Supabase env vars are present)
 const AUTH_ENABLED = !!supabase;
+const AUTH_INIT_TIMEOUT_MS = 8000;
 
 export default function App() {
   const [view, setView] = useState("drafts");
   const [activeDraft, setActiveDraft] = useState(null);
   const [user, setUser] = useState(null);
   const [authLoading, setAuthLoading] = useState(AUTH_ENABLED);
+  const [authError, setAuthError] = useState("");
 
   useEffect(() => {
     if (!AUTH_ENABLED) return;
 
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setUser(session?.user ?? null);
-      setAccessToken(session?.access_token ?? null);
-      setAuthLoading(false);
-    });
+    let cancelled = false;
+
+    async function initializeAuth() {
+      try {
+        const sessionResult = await Promise.race([
+          supabase.auth.getSession(),
+          new Promise((_, reject) => {
+            window.setTimeout(() => reject(new Error("Authentication startup timed out.")), AUTH_INIT_TIMEOUT_MS);
+          }),
+        ]);
+        if (cancelled) return;
+        const session = sessionResult?.data?.session ?? null;
+        setUser(session?.user ?? null);
+        setAccessToken(session?.access_token ?? null);
+        setAuthError("");
+      } catch (error) {
+        if (cancelled) return;
+        setUser(null);
+        setAccessToken(null);
+        setAuthError(error instanceof Error ? error.message : "Authentication failed to start.");
+      } finally {
+        if (!cancelled) setAuthLoading(false);
+      }
+    }
+
+    initializeAuth();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user ?? null);
       setAccessToken(session?.access_token ?? null);
+      setAuthError("");
+      setAuthLoading(false);
     });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      cancelled = true;
+      subscription.unsubscribe();
+    };
   }, []);
 
   if (authLoading) {
@@ -40,7 +68,7 @@ export default function App() {
   }
 
   if (AUTH_ENABLED && !user) {
-    return <AuthScreen />;
+    return <AuthScreen initialError={authError} />;
   }
 
   function handleSignOut() {

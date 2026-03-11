@@ -57,12 +57,12 @@ const S = {
   error: { color: "#d00", fontSize: 13, marginTop: 10 },
 };
 
-export default function AuthScreen() {
+export default function AuthScreen({ initialError = "" }) {
   const [mode, setMode] = useState("login"); // 'login' | 'signup'
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
+  const [error, setError] = useState(initialError);
 
   async function handleSubmit(e) {
     e.preventDefault();

@@ -8,6 +8,7 @@ import Link from "@tiptap/extension-link";
 import Underline from "@tiptap/extension-underline";
 import Placeholder from "@tiptap/extension-placeholder";
 import { forwardRef, useImperativeHandle, useState, useEffect, useRef } from "react";
+import { T } from "../theme.js";
 
 // ─── Convert plain text / markdown to TipTap HTML ────────────────────────────
 
@@ -72,18 +73,20 @@ function ToolBtn({ onClick, active, title, children }) {
         border: "none",
         borderRadius: 4,
         cursor: "pointer",
-        background: active ? "#e8e8e8" : "transparent",
-        color: active ? "#111" : "#555",
+        // Active marks invert: a red pill with ink glyphs. Inactive buttons are
+        // dimmed red on the background.
+        background: active ? T.text : "transparent",
+        color: active ? T.onRed : T.textMuted,
         transition: "background 0.1s",
         fontFamily: "inherit",
         userSelect: "none",
         flexShrink: 0,
       }}
       onMouseEnter={(e) => {
-        if (!active) e.currentTarget.style.background = "#f2f2f2";
+        if (!active) e.currentTarget.style.background = T.raised;
       }}
       onMouseLeave={(e) => {
-        e.currentTarget.style.background = active ? "#e8e8e8" : "transparent";
+        e.currentTarget.style.background = active ? T.text : "transparent";
       }}
     >
       {children}
@@ -97,7 +100,7 @@ function Divider() {
       style={{
         width: 1,
         height: 18,
-        background: "#ddd",
+        background: T.border,
         margin: "0 3px",
         flexShrink: 0,
       }}
@@ -453,7 +456,7 @@ const RichEditor = forwardRef(function RichEditor(
           flexWrap: "wrap",
           gap: 2,
           padding: "5px 10px",
-          background: "#fff",
+          background: T.bg,
           flexShrink: 0,
           userSelect: "none",
         }}
@@ -614,7 +617,7 @@ const RichEditor = forwardRef(function RichEditor(
         </ToolBtn>
 
         {/* Word count */}
-        <div style={{ marginLeft: "auto", fontSize: 12, color: "#aaa", userSelect: "none", flexShrink: 0 }}>
+        <div style={{ marginLeft: "auto", fontSize: 12, color: T.textFaint, userSelect: "none", flexShrink: 0 }}>
           {wordCount.toLocaleString()} {wordCount === 1 ? "word" : "words"}
         </div>
       </div>
@@ -627,11 +630,11 @@ const RichEditor = forwardRef(function RichEditor(
             top: 46,
             left: "50%",
             transform: "translateX(-50%)",
-            background: "#fff",
-            border: "1px solid #ddd",
+            background: T.bg,
+            border: `1px solid ${T.border}`,
             borderRadius: 8,
             padding: "10px 14px",
-            boxShadow: "0 4px 24px rgba(0,0,0,0.13)",
+            boxShadow: T.glow,
             zIndex: 200,
             display: "flex",
             gap: 8,
@@ -654,7 +657,9 @@ const RichEditor = forwardRef(function RichEditor(
             placeholder="https://…"
             style={{
               flex: 1,
-              border: "1px solid #ddd",
+              backgroundColor: T.bg,
+              color: T.text,
+              border: `1px solid ${T.border}`,
               borderRadius: 5,
               padding: "6px 10px",
               fontSize: 13,
@@ -669,8 +674,8 @@ const RichEditor = forwardRef(function RichEditor(
               padding: "6px 12px",
               fontSize: 13,
               fontWeight: 600,
-              background: "#111",
-              color: "#fff",
+              background: T.text,
+              color: T.onRed,
               border: "none",
               borderRadius: 5,
               cursor: "pointer",
@@ -685,9 +690,9 @@ const RichEditor = forwardRef(function RichEditor(
               style={{
                 padding: "6px 10px",
                 fontSize: 13,
-                color: "#666",
+                color: T.textMuted,
                 background: "transparent",
-                border: "1px solid #ddd",
+                border: `1px solid ${T.border}`,
                 borderRadius: 5,
                 cursor: "pointer",
               }}
@@ -701,7 +706,7 @@ const RichEditor = forwardRef(function RichEditor(
             style={{
               padding: "4px 6px",
               fontSize: 15,
-              color: "#aaa",
+              color: T.textFaint,
               background: "transparent",
               border: "none",
               cursor: "pointer",

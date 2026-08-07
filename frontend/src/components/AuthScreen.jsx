@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { supabase } from "../lib/supabase.js";
+import { T } from "../theme.js";
 
 const S = {
   page: {
@@ -8,23 +9,28 @@ const S = {
     alignItems: "center",
     justifyContent: "center",
     height: "100%",
-    background: "#fff",
+    background: T.bg,
   },
   card: {
     width: 400,
     padding: "40px 36px",
-    border: "1px solid #ddd",
+    background: T.surface,
+    border: `1px solid ${T.border}`,
     borderRadius: 8,
-    boxShadow: "0 2px 16px rgba(0,0,0,0.07)",
+    boxShadow: T.glow,
   },
-  title: { fontSize: 26, fontWeight: 700, marginBottom: 4, letterSpacing: "-0.5px" },
-  subtitle: { fontSize: 13, color: "#888", marginBottom: 28 },
-  label: { display: "block", fontSize: 13, fontWeight: 600, color: "#444", marginBottom: 6, marginTop: 18 },
+  title: { fontSize: 26, fontWeight: 700, marginBottom: 4, letterSpacing: "-0.5px", color: T.text },
+  subtitle: { fontSize: 13, color: T.textMuted, marginBottom: 28 },
+  label: { display: "block", fontSize: 13, fontWeight: 600, color: T.textMuted, marginBottom: 6, marginTop: 18 },
   input: {
     width: "100%",
     padding: "9px 12px",
     fontSize: 15,
-    border: "1px solid #ccc",
+    // backgroundColor, not the `background` shorthand: index.css paints a red
+    // arrow onto <select> via background-image, and the shorthand would wipe it.
+    backgroundColor: T.bg,
+    color: T.text,
+    border: `1px solid ${T.border}`,
     borderRadius: 5,
     outline: "none",
     fontFamily: "inherit",
@@ -36,8 +42,8 @@ const S = {
     padding: "12px 0",
     fontSize: 15,
     fontWeight: 700,
-    background: "#FF2020",
-    color: "#fff",
+    background: T.text,
+    color: T.onRed,
     border: "none",
     borderRadius: 6,
     cursor: "pointer",
@@ -49,12 +55,12 @@ const S = {
     fontSize: 13,
     fontWeight: 500,
     background: "transparent",
-    color: "#888",
-    border: "1px solid #ddd",
+    color: T.textMuted,
+    border: `1px solid ${T.border}`,
     borderRadius: 6,
     cursor: "pointer",
   },
-  error: { color: "#d00", fontSize: 13, marginTop: 10 },
+  error: { color: T.text, fontSize: 13, marginTop: 10 },
 };
 
 export default function AuthScreen({ initialError = "" }) {

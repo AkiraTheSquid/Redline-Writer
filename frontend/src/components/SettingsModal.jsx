@@ -1,10 +1,11 @@
 import { useState } from "react";
+import { T } from "../theme.js";
 
 const S = {
   overlay: {
     position: "fixed",
     inset: 0,
-    background: "rgba(0,0,0,0.45)",
+    background: T.overlay,
     zIndex: 1000,
     display: "flex",
     alignItems: "flex-start",
@@ -15,18 +16,23 @@ const S = {
   card: {
     width: 720,
     padding: "36px 36px 32px",
-    background: "#fff",
+    background: T.bg,
+    border: `1px solid ${T.border}`,
     borderRadius: 8,
-    boxShadow: "0 4px 40px rgba(0,0,0,0.22)",
+    boxShadow: T.glowStrong,
     flexShrink: 0,
   },
-  title: { fontSize: 20, fontWeight: 700, marginBottom: 24, letterSpacing: "-0.3px" },
-  label: { display: "block", fontSize: 13, fontWeight: 600, color: "#444", marginBottom: 6, marginTop: 18 },
+  title: { fontSize: 20, fontWeight: 700, marginBottom: 24, letterSpacing: "-0.3px", color: T.text },
+  label: { display: "block", fontSize: 13, fontWeight: 600, color: T.textMuted, marginBottom: 6, marginTop: 18 },
   input: {
     width: "100%",
     padding: "9px 12px",
     fontSize: 15,
-    border: "1px solid #ccc",
+    // backgroundColor, not the `background` shorthand: index.css paints a red
+    // arrow onto <select> via background-image, and the shorthand would wipe it.
+    backgroundColor: T.bg,
+    color: T.text,
+    border: `1px solid ${T.border}`,
     borderRadius: 5,
     outline: "none",
     fontFamily: "inherit",
@@ -36,7 +42,9 @@ const S = {
     width: "100%",
     padding: "9px 12px",
     fontSize: 14,
-    border: "1px solid #ccc",
+    backgroundColor: T.bg,
+    color: T.text,
+    border: `1px solid ${T.border}`,
     borderRadius: 5,
     outline: "none",
     fontFamily: "inherit",
@@ -44,7 +52,16 @@ const S = {
     minHeight: 80,
     boxSizing: "border-box",
   },
-  hint: { fontSize: 12, color: "#aaa", marginTop: 4 },
+  hint: { fontSize: 12, color: T.textFaint, marginTop: 4 },
+  // The small ↑ ↓ ✕ / + Add interval buttons in the interval editor
+  miniBtn: {
+    fontSize: 12,
+    padding: "6px 8px",
+    border: `1px solid ${T.border}`,
+    borderRadius: 4,
+    background: "transparent",
+    color: T.text,
+  },
 };
 
 export default function SettingsModal({ initialConfig, mode, onSubmit, onClose }) {
@@ -137,7 +154,7 @@ export default function SettingsModal({ initialConfig, mode, onSubmit, onClose }
 
         <form onSubmit={handleSubmit}>
           <label style={S.label}>Duration</label>
-          <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 14, color: "#444", marginBottom: 8 }}>
+          <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 14, color: T.textMuted, marginBottom: 8 }}>
             <input
               type="checkbox"
               checked={useIntervals}
@@ -156,7 +173,7 @@ export default function SettingsModal({ initialConfig, mode, onSubmit, onClose }
           )}
           {useIntervals && (
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-              <div style={{ display: "flex", gap: 8, fontSize: 11, color: "#888", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+              <div style={{ display: "flex", gap: 8, fontSize: 11, color: T.textFaint, textTransform: "uppercase", letterSpacing: "0.05em" }}>
                 <div style={{ flex: 1, paddingLeft: 2 }}>Name</div>
                 <div style={{ width: 90 }}>Minutes</div>
                 <div style={{ width: 140 }}>Type</div>
@@ -200,27 +217,27 @@ export default function SettingsModal({ initialConfig, mode, onSubmit, onClose }
                     <option value="break">Break</option>
                   </select>
                   <div style={{ display: "flex", gap: 6 }}>
-                    <button type="button" style={{ fontSize: 12, padding: "6px 8px", border: "1px solid #ddd", borderRadius: 4, background: "#fff" }}
+                    <button type="button" style={S.miniBtn}
                       onClick={() => {
                         if (idx === 0) return;
                         const next = intervals.slice();
                         [next[idx - 1], next[idx]] = [next[idx], next[idx - 1]];
                         setIntervals(next);
                       }}>↑</button>
-                    <button type="button" style={{ fontSize: 12, padding: "6px 8px", border: "1px solid #ddd", borderRadius: 4, background: "#fff" }}
+                    <button type="button" style={S.miniBtn}
                       onClick={() => {
                         if (idx === intervals.length - 1) return;
                         const next = intervals.slice();
                         [next[idx], next[idx + 1]] = [next[idx + 1], next[idx]];
                         setIntervals(next);
                       }}>↓</button>
-                    <button type="button" style={{ fontSize: 12, padding: "6px 8px", border: "1px solid #ddd", borderRadius: 4, background: "#fff", color: "#d00" }}
+                    <button type="button" style={S.miniBtn}
                       onClick={() => { const next = intervals.slice(); next.splice(idx, 1); setIntervals(next); }}>✕</button>
                   </div>
                 </div>
               ))}
               <button type="button"
-                style={{ fontSize: 13, padding: "8px 10px", border: "1px solid #ddd", borderRadius: 4, background: "#fff", alignSelf: "flex-start" }}
+                style={{ ...S.miniBtn, fontSize: 13, padding: "8px 10px", alignSelf: "flex-start" }}
                 onClick={() => setIntervals([...intervals, { name: "", minutes: "5", type: "work" }])}>
                 + Add interval
               </button>
@@ -241,7 +258,7 @@ export default function SettingsModal({ initialConfig, mode, onSubmit, onClose }
             <select
               value={wpmDelayUnit}
               onChange={(e) => setWpmDelayUnit(e.target.value)}
-              style={{ fontSize: 14, padding: "9px 12px", border: "1px solid #ccc", borderRadius: 5 }}
+              style={{ ...S.input, width: "auto", fontSize: 14, padding: "9px 12px" }}
             >
               <option value="seconds">seconds</option>
               <option value="minutes">minutes</option>
@@ -258,39 +275,39 @@ export default function SettingsModal({ initialConfig, mode, onSubmit, onClose }
           />
 
           <label style={S.label}>Copy protection</label>
-          <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 14, color: "#444" }}>
+          <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 14, color: T.textMuted }}>
             <input type="checkbox" checked={preventCopy} onChange={(e) => setPreventCopy(e.target.checked)} />
             Prevent copying during the session
           </label>
 
           <label style={S.label}>Redacted typing</label>
-          <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 14, color: "#444" }}>
+          <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 14, color: T.textMuted }}>
             <input type="checkbox" checked={redactText} onChange={(e) => setRedactText(e.target.checked)} />
             Hide letters and numbers while typing
           </label>
-          <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, color: "#666", marginLeft: 22, marginTop: 6 }}>
+          <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, color: T.textFaint, marginLeft: 22, marginTop: 6 }}>
             <input type="checkbox" checked={dontRedactHeaders} onChange={(e) => setDontRedactHeaders(e.target.checked)} disabled={!redactText} />
             <span>Don&apos;t include headers in redaction</span>
           </label>
 
           <label style={S.label}>Inactivity deletion</label>
-          <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 14, color: "#444", flexWrap: "wrap" }}>
+          <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 14, color: T.textMuted, flexWrap: "wrap" }}>
             <input type="checkbox" checked={inactivityEnabled} onChange={(e) => setInactivityEnabled(e.target.checked)} />
             Delete the text if the user stops typing for
             <input
               type="number" min="1" value={inactivityValue}
               onChange={(e) => setInactivityValue(e.target.value)}
               disabled={!inactivityEnabled}
-              style={{ width: 70, fontSize: 14, padding: "4px 6px", border: "1px solid #ccc", borderRadius: 4 }}
+              style={{ ...S.input, width: 70, fontSize: 14, padding: "4px 6px", borderRadius: 4 }}
             />
             <select value={inactivityUnit} onChange={(e) => setInactivityUnit(e.target.value)} disabled={!inactivityEnabled}
-              style={{ fontSize: 14, padding: "4px 6px", border: "1px solid #ccc", borderRadius: 4 }}>
+              style={{ ...S.input, width: "auto", fontSize: 14, padding: "4px 6px", borderRadius: 4 }}>
               <option value="seconds">seconds</option>
               <option value="minutes">minutes</option>
             </select>
           </label>
 
-          {error && <div style={{ color: "red", fontSize: 13, marginTop: 10 }}>{error}</div>}
+          {error && <div style={{ color: T.text, fontSize: 13, marginTop: 10 }}>{error}</div>}
 
           <div style={{ display: "flex", gap: 10, marginTop: 28 }}>
             <button
@@ -300,9 +317,12 @@ export default function SettingsModal({ initialConfig, mode, onSubmit, onClose }
                 padding: "12px 0",
                 fontSize: 15,
                 fontWeight: 700,
-                background: mode === "start" ? "#FF2020" : "#222",
-                color: "#fff",
-                border: "none",
+                // "Start" is the committing action, so it gets the solid red
+                // fill; "Save" is outlined. With one hue, fill-vs-outline is
+                // what carries the difference in emphasis.
+                background: mode === "start" ? T.text : "transparent",
+                color: mode === "start" ? T.onRed : T.text,
+                border: mode === "start" ? "none" : `1px solid ${T.borderStrong}`,
                 borderRadius: 6,
                 cursor: "pointer",
               }}
@@ -317,8 +337,8 @@ export default function SettingsModal({ initialConfig, mode, onSubmit, onClose }
                 fontSize: 14,
                 fontWeight: 600,
                 background: "transparent",
-                color: "#888",
-                border: "1px solid #ddd",
+                color: T.textMuted,
+                border: `1px solid ${T.border}`,
                 borderRadius: 6,
                 cursor: "pointer",
               }}

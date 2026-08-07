@@ -14,7 +14,7 @@
  * `start.sh` up in a terminal, launching the desktop app will not disturb it.
  */
 
-const { app, BrowserWindow, Menu, shell, dialog } = require("electron");
+const { app, BrowserWindow, Menu, shell, dialog, session } = require("electron");
 const { spawn, execFile } = require("child_process");
 const net = require("net");
 const path = require("path");
@@ -251,6 +251,11 @@ async function ensureFrontend(status) {
 
 // ─── Windows ─────────────────────────────────────────────────────────────────
 
+// The app's dark grey, matching frontend/src/theme.js and the icon. Electron
+// paints this before any page renders, so it is what prevents a white flash on
+// launch — keep it in step with the UI background.
+const WINDOW_BG = "#1E1E1E";
+
 /** Tiny always-on-top window showing boot progress, closed once the UI loads. */
 function createSplash() {
   splashWindow = new BrowserWindow({
@@ -259,7 +264,7 @@ function createSplash() {
     frame: false,
     resizable: false,
     show: true,
-    backgroundColor: "#111111",
+    backgroundColor: WINDOW_BG,
     webPreferences: { contextIsolation: true, nodeIntegration: false },
   });
   splashWindow.loadFile(path.join(__dirname, "splash.html"));
@@ -284,7 +289,7 @@ function createMainWindow() {
     minWidth: 900,
     minHeight: 600,
     show: false,
-    backgroundColor: "#111111",
+    backgroundColor: WINDOW_BG,
     title: "Redline Writer",
     autoHideMenuBar: true,
     webPreferences: {
@@ -345,6 +350,12 @@ if (!app.requestSingleInstanceLock()) {
       await ensureFrontend(setStatus);
 
       setStatus("Opening…");
+      // Drop the HTTP cache before loading. The UI is served from localhost, so
+      // caching saves nothing — but it does let a rebuilt frontend come up as
+      // the *previous* version: Electron replays the cached index.html, which
+      // points at asset hashes that no longer exist. The app then looks like the
+      // update silently failed. Cheap to clear, so always clear.
+      await session.defaultSession.clearCache();
       createMainWindow();
       await mainWindow.loadURL(APP_URL);
     } catch (err) {

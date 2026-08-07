@@ -105,6 +105,14 @@ an inverted white square with the artwork missing — and exits 0, so it looks l
 which ImageMagick handles fine. The `scalable` icon entry ships the SVG as-is because GTK
 renders it through librsvg, which is correct.
 
+### The window is cleared of cache on every launch
+
+`main.js` calls `session.defaultSession.clearCache()` before loading the UI. The app is
+served from localhost, so the cache saves nothing — but it does let a rebuilt frontend come
+up as the **previous** version: Electron replays the cached `index.html`, which points at
+asset hashes that no longer exist. The symptom is an update that appears to have silently
+done nothing. Do not remove this call without another cache-busting scheme.
+
 ### StartupWMClass is easy to get wrong
 
 The desktop entry sets `StartupWMClass=redline-writer-desktop`. Electron takes the window's
@@ -164,8 +172,19 @@ dev backend already on 8001 — useful when both are open at once.
   data, so it is a deliberate decision rather than a cleanup.
 - **No auto-update and no code signing** — `npm run dist` produces an unsigned local artifact.
 
+## Colours
+
+The UI uses exactly two colours, taken from the icon: `#1E1E1E` and `#ED0020`. The tokens
+live in `frontend/src/theme.js`, which is the only place a colour may be defined. Three
+places outside the React app have to be kept in step by hand, because they paint before any
+stylesheet loads: `WINDOW_BG` in `main.js`, the `<style>` block in `frontend/index.html`,
+and `splash.html`.
+
 ## Recent Changes
 
+- **2026-08-07** — Two-colour dark theme across the whole UI (`frontend/src/theme.js`),
+  including the splash, window background and native controls. Electron's HTTP cache is
+  now cleared on launch — without it the rebuilt UI came up as the previous version.
 - **2026-08-07** — Desktop integration: `scripts/install-desktop.sh` (`npm run app`), icon
   built from `build/icon.svg`, corrected `StartupWMClass`. Cold-start verified: with the
   container stopped, the app brought it up on the pinned project and all 5 existing drafts

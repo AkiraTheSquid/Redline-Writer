@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import { api } from "../api.js";
+import { T, red } from "../theme.js";
 import SettingsModal from "./SettingsModal.jsx";
 import RichEditor, { extractTiptapHeaders } from "./RichEditor.jsx";
 
@@ -35,10 +36,16 @@ function beep(frequency = 750, durationMs = 150) {
   }
 }
 
-const SIDEBAR_COLORS = [
-  "#FF0000", "#FF2020", "#FF4040", "#FF6060", "#FF8080",
-  "#FFA0A0", "#FFC0C0", "#FFD0D0", "#FFE0E0", "#FFFFFF",
-];
+// The pads flanking the editor are the WPM gauge. With a single hue available,
+// the signal is intensity rather than colour: full red when you are about to
+// lose the draft, fading into the background once you are clear of the minimum.
+// Index 0 = danger, last index = fully calm (transparent, so the pads read as
+// plain background).
+const SIDEBAR_STEPS = 10;
+const SIDEBAR_COLORS = Array.from({ length: SIDEBAR_STEPS }, (_, i) =>
+  red(1 - i / (SIDEBAR_STEPS - 1))
+);
+const SIDEBAR_CALM = SIDEBAR_COLORS[SIDEBAR_STEPS - 1];
 
 function getSidebarColor(currentWpm, minWpm) {
   const delta = currentWpm - minWpm;
@@ -96,7 +103,7 @@ export default function WritingScreen({ draft, onEnd }) {
   // ── Display state ────────────────────────────────────────────────────────
   const [displayWpm, setDisplayWpm] = useState(0);
   const [displayTime, setDisplayTime] = useState(0);
-  const [sidebarColor, setSidebarColor] = useState("#FFFFFF");
+  const [sidebarColor, setSidebarColor] = useState(SIDEBAR_CALM);
   const [outcome, setOutcome] = useState(null);
   const [outlineItems, setOutlineItems] = useState([]);
   const [intervalIndex, setIntervalIndex] = useState(0);
@@ -227,7 +234,7 @@ export default function WritingScreen({ draft, onEnd }) {
       setIntervalIndex(0);
       setDisplayTime(0);
       setDisplayWpm(0);
-      setSidebarColor("#FFFFFF");
+      setSidebarColor(SIDEBAR_CALM);
       setOutcome(outcomeStr);
       return;
     }
@@ -258,7 +265,7 @@ export default function WritingScreen({ draft, onEnd }) {
     setIntervalIndex(0);
     setDisplayTime(0);
     setDisplayWpm(0);
-    setSidebarColor("#FFFFFF");
+    setSidebarColor(SIDEBAR_CALM);
   }, []);
 
   // ── startIntervalAt ───────────────────────────────────────────────────────
@@ -365,7 +372,7 @@ export default function WritingScreen({ draft, onEnd }) {
       const netWords = Math.max(0, wordCount - baselineWordsRef.current);
       const wpm = wpmElapsedSec > 0 ? Math.round((netWords * 60) / wpmElapsedSec) : 0;
       setDisplayWpm(wpm);
-      setSidebarColor(isBreakLocal ? "#FFFFFF" : getSidebarColor(wpm, minWpmLocal));
+      setSidebarColor(isBreakLocal ? SIDEBAR_CALM : getSidebarColor(wpm, minWpmLocal));
 
       if (isWorkModeLocal && inactEnabled) {
         if (charCount > 0) hasTypedRef.current = true;
@@ -424,10 +431,10 @@ export default function WritingScreen({ draft, onEnd }) {
     return (
       <div style={overlay}>
         <div style={overlayCard}>
-          <div style={{ fontSize: 24, fontWeight: 700, color: "#FF0000", marginBottom: 12 }}>
+          <div style={{ fontSize: 24, fontWeight: 700, color: T.text, marginBottom: 12 }}>
             {m.title}
           </div>
-          <div style={{ fontSize: 15, color: "#555", marginBottom: 28 }}>{m.desc}</div>
+          <div style={{ fontSize: 15, color: T.textMuted, marginBottom: 28 }}>{m.desc}</div>
           <button style={btnRed} onClick={onEnd}>Next</button>
         </div>
       </div>
@@ -443,12 +450,12 @@ export default function WritingScreen({ draft, onEnd }) {
       <div style={{ width: LEFT_PAD_W, flexShrink: 0, background: sidebarColor, transition: "background 0.4s" }} />
 
       {/* Outline */}
-      <div style={{ width: OUTLINE_W, flexShrink: 0, padding: "12px 10px", background: "#fff", overflowY: "auto" }}>
-        <div style={{ fontSize: 11, fontWeight: 700, color: "#999", marginBottom: 8, textTransform: "uppercase", letterSpacing: "0.06em" }}>
+      <div style={{ width: OUTLINE_W, flexShrink: 0, padding: "12px 10px", background: T.bg, overflowY: "auto" }}>
+        <div style={{ fontSize: 11, fontWeight: 700, color: T.textFaint, marginBottom: 8, textTransform: "uppercase", letterSpacing: "0.06em" }}>
           Headers
         </div>
         {outlineItems.length === 0 ? (
-          <div style={{ fontSize: 12, color: "#aaa" }}>No headers yet.</div>
+          <div style={{ fontSize: 12, color: T.textFaint }}>No headers yet.</div>
         ) : (
           outlineItems.map((h, idx) => (
             <button
@@ -458,7 +465,7 @@ export default function WritingScreen({ draft, onEnd }) {
                 if (!tiptapEditor || h.pos == null) return;
                 tiptapEditor.chain().focus().setTextSelection(h.pos).scrollIntoView().run();
               }}
-              style={{ display: "block", width: "100%", textAlign: "left", fontSize: 13, color: "#444", background: "transparent", border: "none", padding: "4px 6px", marginLeft: (h.level - 1) * 10, cursor: "pointer" }}
+              style={{ display: "block", width: "100%", textAlign: "left", fontSize: 13, color: T.textMuted, background: "transparent", border: "none", padding: "4px 6px", marginLeft: (h.level - 1) * 10, cursor: "pointer" }}
               title={h.text}
             >
               {"#".repeat(h.level)} {h.text}
@@ -487,16 +494,16 @@ export default function WritingScreen({ draft, onEnd }) {
   // ── Draft mode UI ─────────────────────────────────────────────────────────
   if (!sessionMode) {
     return (
-      <div style={{ display: "flex", flexDirection: "column", height: "100vh", overflow: "hidden", background: "#fff" }}>
+      <div style={{ display: "flex", flexDirection: "column", height: "100vh", overflow: "hidden", background: T.bg }}>
         {/* Draft mode top bar */}
         <div style={{
           height: topBarH, display: "flex", alignItems: "center", justifyContent: "space-between",
-          padding: "0 16px", background: "#fff", flexShrink: 0, gap: 12,
+          padding: "0 16px", background: T.bg, flexShrink: 0, gap: 12,
         }}>
           <div style={{ display: "flex", alignItems: "center", gap: 12, flex: 1, minWidth: 0 }}>
             <button
               onClick={handleBack}
-              style={{ fontSize: 13, color: "#888", background: "none", border: "none", cursor: "pointer", padding: "4px 6px", flexShrink: 0 }}
+              style={{ fontSize: 13, color: T.textMuted, background: "none", border: "none", cursor: "pointer", padding: "4px 6px", flexShrink: 0 }}
             >
               ← Drafts
             </button>
@@ -507,20 +514,20 @@ export default function WritingScreen({ draft, onEnd }) {
               onBlur={handleTitleBlur}
               style={{
                 flex: 1, minWidth: 0, border: "none", outline: "none", fontSize: 15, fontWeight: 600,
-                color: "#222", fontFamily: "inherit", background: "transparent",
+                color: T.text, fontFamily: "inherit", background: "transparent",
               }}
             />
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
             <button
               onClick={() => setShowSettings("edit")}
-              style={{ fontSize: 13, padding: "6px 14px", border: "1px solid #ddd", borderRadius: 5, background: "#fff", color: "#555", cursor: "pointer" }}
+              style={{ fontSize: 13, padding: "6px 14px", border: `1px solid ${T.border}`, borderRadius: 5, background: "transparent", color: T.textMuted, cursor: "pointer" }}
             >
               Edit Settings
             </button>
             <button
               onClick={() => setShowSettings("start")}
-              style={{ fontSize: 13, fontWeight: 700, padding: "7px 16px", border: "none", borderRadius: 5, background: "#FF2020", color: "#fff", cursor: "pointer" }}
+              style={{ fontSize: 13, fontWeight: 700, padding: "7px 16px", border: "none", borderRadius: 5, background: T.text, color: T.onRed, cursor: "pointer" }}
             >
               Start Session
             </button>
@@ -543,21 +550,21 @@ export default function WritingScreen({ draft, onEnd }) {
 
   // ── Session mode UI ───────────────────────────────────────────────────────
   return (
-    <div style={{ display: "flex", flexDirection: "column", height: "100vh", overflow: "hidden", background: "#fff" }}>
+    <div style={{ display: "flex", flexDirection: "column", height: "100vh", overflow: "hidden", background: T.bg }}>
       {/* Session mode top bar */}
       <div style={{
         height: topBarH, display: "flex", alignItems: "center", justifyContent: "space-between",
-        padding: "0 16px", background: "#fff", flexShrink: 0, userSelect: "none",
+        padding: "0 16px", background: T.bg, flexShrink: 0, userSelect: "none",
       }}>
-        <span style={{ fontSize: 18, fontWeight: 700 }}>
+        <span style={{ fontSize: 18, fontWeight: 700, color: T.text }}>
           WPM: {displayWpm}
-          <span style={{ color: "#FF0000", fontSize: 13, marginLeft: 8 }}>(min {min_wpm} after {wpmGracePeriodSec}s)</span>
+          <span style={{ color: T.textMuted, fontSize: 13, marginLeft: 8 }}>(min {min_wpm} after {wpmGracePeriodSec}s)</span>
         </span>
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          <span style={{ fontSize: 17, fontWeight: 600, color: "#111" }}>{formatTime(displayTime)}</span>
+          <span style={{ fontSize: 17, fontWeight: 600, color: T.text }}>{formatTime(displayTime)}</span>
           {isEdit && !editWorkMode && (
             <button
-              style={{ fontSize: 12, padding: "4px 10px", border: "1px solid #ccc", borderRadius: 4, background: "#fff", color: "#888" }}
+              style={topBarBtn}
               onClick={() => {
                 setEditWorkMode(true);
                 wpmStartRef.current = Date.now();
@@ -573,7 +580,7 @@ export default function WritingScreen({ draft, onEnd }) {
           )}
           {isBreak && (
             <button
-              style={{ fontSize: 12, padding: "4px 10px", border: "1px solid #ccc", borderRadius: 4, background: "#fff", color: "#888" }}
+              style={topBarBtn}
               onClick={() => { if (isLastInterval) { endSession("completed"); return; } startIntervalAt(intervalIndex + 1); }}
             >
               End Break
@@ -581,7 +588,7 @@ export default function WritingScreen({ draft, onEnd }) {
           )}
           {!isBreak && (
             <button
-              style={{ fontSize: 12, padding: "4px 12px", border: "1px solid #ccc", borderRadius: 4, background: "#fff", color: "#888" }}
+              style={{ ...topBarBtn, padding: "4px 12px" }}
               onClick={() => endSession("deleted_abandoned")}
             >
               Abandon Session (Deletes the Draft)
@@ -598,13 +605,18 @@ export default function WritingScreen({ draft, onEnd }) {
 // ── shared styles ──────────────────────────────────────────────────────────
 const overlay = {
   position: "fixed", inset: 0, display: "flex", alignItems: "center", justifyContent: "center",
-  background: "rgba(255,255,255,0.96)", zIndex: 9999,
+  background: T.overlay, zIndex: 9999,
 };
 const overlayCard = {
-  textAlign: "center", padding: "48px 56px", border: "1px solid #ddd", borderRadius: 10,
-  boxShadow: "0 4px 32px rgba(0,0,0,0.10)", background: "#fff", maxWidth: 440,
+  textAlign: "center", padding: "48px 56px", border: `1px solid ${T.border}`, borderRadius: 10,
+  boxShadow: T.glowStrong, background: T.bg, maxWidth: 440,
 };
 const btnRed = {
   padding: "12px 32px", fontSize: 15, fontWeight: 700,
-  background: "#FF2020", color: "#fff", border: "none", borderRadius: 6, cursor: "pointer",
+  background: T.text, color: T.onRed, border: "none", borderRadius: 6, cursor: "pointer",
+};
+// The three session-mode top-bar controls (Switch to Work / End Break / Abandon)
+const topBarBtn = {
+  fontSize: 12, padding: "4px 10px", border: `1px solid ${T.border}`, borderRadius: 4,
+  background: "transparent", color: T.textMuted, cursor: "pointer",
 };

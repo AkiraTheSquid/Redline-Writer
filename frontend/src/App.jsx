@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { supabase } from "./lib/supabase.js";
 import { setAccessToken } from "./api.js";
+import { T } from "./theme.js";
 import AuthScreen from "./components/AuthScreen.jsx";
 import DraftsScreen from "./components/DraftsScreen.jsx";
 import WritingScreen from "./components/WritingScreen.jsx";
@@ -64,7 +65,7 @@ export default function App() {
 
   if (authLoading) {
     return (
-      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 10, height: "100%", color: "#888", fontSize: 15 }}>
+      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 10, height: "100%", color: T.textMuted, fontSize: 15 }}>
         <div>Loading…</div>
         {authStatus && <div style={{ fontSize: 13 }}>{authStatus}</div>}
       </div>

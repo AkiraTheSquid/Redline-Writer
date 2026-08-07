@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { T } from "../theme.js";
 
 const S = {
   page: {
@@ -7,31 +8,33 @@ const S = {
     alignItems: "center",
     justifyContent: "center",
     height: "100%",
-    background: "#fff",
+    background: T.bg,
   },
   card: {
     width: 720,
     padding: "40px 36px",
-    border: "1px solid #ddd",
+    background: T.surface,
+    border: `1px solid ${T.border}`,
     borderRadius: 8,
-    boxShadow: "0 2px 16px rgba(0,0,0,0.07)",
+    boxShadow: T.glow,
   },
   title: {
     fontSize: 28,
     fontWeight: 700,
     marginBottom: 8,
     letterSpacing: "-0.5px",
+    color: T.text,
   },
   subtitle: {
     fontSize: 13,
-    color: "#888",
+    color: T.textMuted,
     marginBottom: 32,
   },
   label: {
     display: "block",
     fontSize: 13,
     fontWeight: 600,
-    color: "#444",
+    color: T.textMuted,
     marginBottom: 6,
     marginTop: 18,
   },
@@ -39,7 +42,11 @@ const S = {
     width: "100%",
     padding: "9px 12px",
     fontSize: 15,
-    border: "1px solid #ccc",
+    // backgroundColor, not the `background` shorthand: index.css paints a red
+    // arrow onto <select> via background-image, and the shorthand would wipe it.
+    backgroundColor: T.bg,
+    color: T.text,
+    border: `1px solid ${T.border}`,
     borderRadius: 5,
     outline: "none",
     fontFamily: "inherit",
@@ -48,7 +55,9 @@ const S = {
     width: "100%",
     padding: "9px 12px",
     fontSize: 14,
-    border: "1px solid #ccc",
+    backgroundColor: T.bg,
+    color: T.text,
+    border: `1px solid ${T.border}`,
     borderRadius: 5,
     outline: "none",
     fontFamily: "inherit",
@@ -61,8 +70,8 @@ const S = {
     padding: "12px 0",
     fontSize: 16,
     fontWeight: 700,
-    background: "#FF2020",
-    color: "#fff",
+    background: T.text,
+    color: T.onRed,
     border: "none",
     borderRadius: 6,
   },
@@ -73,14 +82,23 @@ const S = {
     fontSize: 14,
     fontWeight: 600,
     background: "transparent",
-    color: "#888",
-    border: "1px solid #ddd",
+    color: T.textMuted,
+    border: `1px solid ${T.border}`,
     borderRadius: 6,
   },
   hint: {
     fontSize: 12,
-    color: "#aaa",
+    color: T.textFaint,
     marginTop: 4,
+  },
+  // The small ↑ ↓ ✕ / + Add interval buttons in the interval editor
+  miniBtn: {
+    fontSize: 12,
+    padding: "6px 8px",
+    border: `1px solid ${T.border}`,
+    borderRadius: 4,
+    background: "transparent",
+    color: T.text,
   },
 };
 
@@ -153,7 +171,7 @@ export default function SetupScreen({ onStart, onHistory }) {
 
         <form onSubmit={handleSubmit}>
           <label style={S.label}>Duration</label>
-          <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 14, color: "#444", marginBottom: 8 }}>
+          <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 14, color: T.textMuted, marginBottom: 8 }}>
             <input
               type="checkbox"
               checked={useIntervals}
@@ -173,7 +191,7 @@ export default function SetupScreen({ onStart, onHistory }) {
           )}
           {useIntervals && (
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-              <div style={{ display: "flex", gap: 8, fontSize: 11, color: "#888", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+              <div style={{ display: "flex", gap: 8, fontSize: 11, color: T.textFaint, textTransform: "uppercase", letterSpacing: "0.05em" }}>
                 <div style={{ flex: 1, paddingLeft: 2 }}>Name</div>
                 <div style={{ width: 90 }}>Minutes</div>
                 <div style={{ width: 140 }}>Type</div>
@@ -182,7 +200,7 @@ export default function SetupScreen({ onStart, onHistory }) {
               {intervals.map((it, idx) => (
                 <div key={idx} style={{ display: "flex", gap: 8, alignItems: "center" }}>
                   <input
-                    style={{ ...S.input, flex: 1, minWidth: 140, color: "#111", background: "#fff" }}
+                    style={{ ...S.input, flex: 1, minWidth: 140 }}
                     type="text"
                     placeholder="Interval name (optional)"
                     value={it.name}
@@ -219,7 +237,7 @@ export default function SetupScreen({ onStart, onHistory }) {
                   <div style={{ display: "flex", gap: 6 }}>
                     <button
                       type="button"
-                      style={{ fontSize: 12, padding: "6px 8px", border: "1px solid #ddd", borderRadius: 4, background: "#fff" }}
+                      style={S.miniBtn}
                       onClick={() => {
                         if (idx === 0) return;
                         const next = intervals.slice();
@@ -233,7 +251,7 @@ export default function SetupScreen({ onStart, onHistory }) {
                     </button>
                     <button
                       type="button"
-                      style={{ fontSize: 12, padding: "6px 8px", border: "1px solid #ddd", borderRadius: 4, background: "#fff" }}
+                      style={S.miniBtn}
                       onClick={() => {
                         if (idx === intervals.length - 1) return;
                         const next = intervals.slice();
@@ -247,7 +265,7 @@ export default function SetupScreen({ onStart, onHistory }) {
                     </button>
                     <button
                       type="button"
-                      style={{ fontSize: 12, padding: "6px 8px", border: "1px solid #ddd", borderRadius: 4, background: "#fff", color: "#d00" }}
+                      style={S.miniBtn}
                       onClick={() => {
                         const next = intervals.slice();
                         next.splice(idx, 1);
@@ -261,7 +279,7 @@ export default function SetupScreen({ onStart, onHistory }) {
               ))}
               <button
                 type="button"
-                style={{ fontSize: 13, padding: "8px 10px", border: "1px solid #ddd", borderRadius: 4, background: "#fff", alignSelf: "flex-start" }}
+                style={{ ...S.miniBtn, fontSize: 13, padding: "8px 10px", alignSelf: "flex-start" }}
                 onClick={() => setIntervals([...intervals, { name: "", minutes: "5", type: "work" }])}
               >
                 + Add interval
@@ -288,7 +306,7 @@ export default function SetupScreen({ onStart, onHistory }) {
           />
 
           <label style={S.label}>Copy protection</label>
-          <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 14, color: "#444" }}>
+          <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 14, color: T.textMuted }}>
             <input
               type="checkbox"
               checked={preventCopy}
@@ -298,7 +316,7 @@ export default function SetupScreen({ onStart, onHistory }) {
           </label>
 
           <label style={S.label}>Redacted typing</label>
-          <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 14, color: "#444" }}>
+          <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 14, color: T.textMuted }}>
             <input
               type="checkbox"
               checked={redactText}
@@ -306,7 +324,7 @@ export default function SetupScreen({ onStart, onHistory }) {
             />
             Hide letters and numbers while typing (spaces/punctuation visible)
           </label>
-          <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, color: "#666", marginLeft: 22, marginTop: 6 }}>
+          <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, color: T.textFaint, marginLeft: 22, marginTop: 6 }}>
             <input
               type="checkbox"
               checked={dontRedactHeaders}
@@ -321,7 +339,7 @@ export default function SetupScreen({ onStart, onHistory }) {
           </label>
 
           <label style={S.label}>Inactivity deletion</label>
-          <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 14, color: "#444" }}>
+          <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 14, color: T.textMuted }}>
             <input
               type="checkbox"
               checked={inactivityEnabled}
@@ -334,13 +352,13 @@ export default function SetupScreen({ onStart, onHistory }) {
               value={inactivityValue}
               onChange={(e) => setInactivityValue(e.target.value)}
               disabled={!inactivityEnabled}
-              style={{ width: 70, fontSize: 14, padding: "4px 6px", border: "1px solid #ccc", borderRadius: 4 }}
+              style={{ ...S.input, width: 70, fontSize: 14, padding: "4px 6px", borderRadius: 4 }}
             />
             <select
               value={inactivityUnit}
               onChange={(e) => setInactivityUnit(e.target.value)}
               disabled={!inactivityEnabled}
-              style={{ fontSize: 14, padding: "4px 6px", border: "1px solid #ccc", borderRadius: 4 }}
+              style={{ ...S.input, width: "auto", fontSize: 14, padding: "4px 6px", borderRadius: 4 }}
             >
               <option value="seconds">seconds</option>
               <option value="minutes">minutes</option>
@@ -348,7 +366,7 @@ export default function SetupScreen({ onStart, onHistory }) {
           </label>
 
           {error && (
-            <div style={{ color: "red", fontSize: 13, marginTop: 10 }}>{error}</div>
+            <div style={{ color: T.text, fontSize: 13, marginTop: 10 }}>{error}</div>
           )}
 
           <button style={S.btn} type="submit">

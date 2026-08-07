@@ -1,3 +1,21 @@
+/* Two colours only — see src/theme.js for the rule and the tokens.
+   :root mirrors them so plain CSS below can use them too. */
+:root {
+  --ink: #1E1E1E;
+  --red: #ED0020;
+  --red-05: rgba(237, 0, 32, 0.05);
+  --red-10: rgba(237, 0, 32, 0.10);
+  --red-30: rgba(237, 0, 32, 0.30);
+  --red-45: rgba(237, 0, 32, 0.45);
+  --red-70: rgba(237, 0, 32, 0.70);
+
+  color-scheme: dark;
+  /* Paints native widgets — checkboxes, radios, focus rings, the number-input
+     spinners — red instead of the browser's default blue. Without this the
+     two-colour rule breaks the moment a checkbox is ticked. */
+  accent-color: var(--red);
+}
+
 *, *::before, *::after {
   box-sizing: border-box;
   margin: 0;
@@ -7,13 +25,137 @@
 html, body, #root {
   height: 100%;
   font-family: "Segoe UI", system-ui, sans-serif;
-  background: #fff;
-  color: #111;
+  background: var(--ink);
+  color: var(--red);
 }
 
 button {
   cursor: pointer;
   font-family: inherit;
+}
+
+/* Form controls inherit the browser's light chrome otherwise: white fills,
+   black text, blue focus. Pin all of them to the palette. */
+input, textarea, select, option {
+  background: var(--ink);
+  color: var(--red);
+  font-family: inherit;
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: var(--red-45);
+}
+
+input:disabled,
+textarea:disabled,
+select:disabled {
+  color: var(--red-45);
+  opacity: 1; /* the UA's default fade would grey the text */
+}
+
+::selection {
+  background: var(--red);
+  color: var(--ink);
+}
+
+/* Focus: the UA ring is its own blue/white. Draw ours in red instead. */
+:focus-visible {
+  outline: 2px solid var(--red);
+  outline-offset: 1px;
+}
+
+/* ── Native controls, rebuilt ────────────────────────────────────────────────
+   accent-color only paints the *checked* state. An unchecked checkbox, the
+   dropdown arrow on a <select>, and the number-input spinners all keep the
+   UA's own greys, which is a third colour on screen. Each one is replaced. */
+
+input[type="checkbox"] {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+  border: 1px solid var(--red-70);
+  border-radius: 3px;
+  background: transparent;
+  display: inline-grid;
+  place-content: center;
+  cursor: pointer;
+}
+
+input[type="checkbox"]::before {
+  content: "";
+  width: 9px;
+  height: 9px;
+  transform: scale(0);
+  background: var(--ink);
+  /* A checkmark, so the tick is ink cut out of the red fill */
+  clip-path: polygon(14% 47%, 0 61%, 39% 100%, 100% 22%, 85% 9%, 37% 71%);
+}
+
+input[type="checkbox"]:checked {
+  background: var(--red);
+  border-color: var(--red);
+}
+
+input[type="checkbox"]:checked::before {
+  transform: scale(1);
+}
+
+input[type="checkbox"]:disabled {
+  border-color: var(--red-30);
+  cursor: default;
+}
+input[type="checkbox"]:disabled:checked {
+  background: var(--red-30);
+}
+
+select {
+  appearance: none;
+  -webkit-appearance: none;
+  /* Red chevron, inlined as a data URI — an external asset would break the
+     Electron build's single-origin load. Leave room for it on the right. */
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 6'%3E%3Cpath d='M0 0h10L5 6z' fill='%23ED0020'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  background-size: 9px 6px;
+  /* !important because every <select> is styled inline with a `padding`
+     shorthand, which would otherwise reset padding-right and leave the arrow
+     sitting on top of the label text. */
+  padding-right: 28px !important;
+}
+
+/* Spinners render as grey glyphs and cannot be recoloured — drop them. The
+   number inputs still accept typing and arrow keys. */
+input[type="number"] {
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+/* Scrollbars — the default light track is very visible against ink. */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--red-30) transparent;
+}
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--red-30);
+  border-radius: 5px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--red-70);
 }
 
 .redacted-editor {
@@ -23,7 +165,7 @@ button {
 
 .redacted-editor::selection {
   color: transparent;
-  background: rgba(0, 0, 0, 0.15);
+  background: var(--red-30);
 }
 
 /* ── Rich text editor (TipTap / ProseMirror) ─────────────────────────────── */
@@ -44,7 +186,8 @@ button {
   font-size: 24px;
   line-height: 1.7;
   outline: none;
-  color: #111;
+  color: var(--red);
+  caret-color: var(--red);
   font-family: inherit;
   word-break: break-word;
 }
@@ -53,7 +196,7 @@ button {
 .rich-editor-scroll .ProseMirror p.is-editor-empty:first-child::before {
   content: attr(data-placeholder);
   float: left;
-  color: #aaa;
+  color: var(--red-45);
   pointer-events: none;
   height: 0;
 }
@@ -85,9 +228,11 @@ button {
   margin: 0.5em 0 0.2em;
 }
 
+/* Redacted letters: solid red blocks. The text under them is transparent, so
+   the block must be opaque or the letters show through. */
 .rich-editor-scroll .ProseMirror .redact-letter {
   color: transparent;
-  background: #000;
+  background: var(--red);
   box-decoration-break: clone;
   border-radius: 7px;
 }
@@ -96,8 +241,8 @@ button {
   width: 24px;
   height: 24px;
   border-radius: 50%;
-  border: 1px solid #d2d2d2;
-  background: #e8e8e8;
+  border: 1px solid var(--red-30);
+  background: var(--red-10);
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -114,7 +259,7 @@ button {
   height: 0;
   border-left: 5px solid transparent;
   border-right: 5px solid transparent;
-  border-top: 8px solid #666;
+  border-top: 8px solid var(--red);
   transform: translateY(1px);
 }
 
@@ -122,7 +267,7 @@ button {
   border: none;
   border-top: 5px solid transparent;
   border-bottom: 5px solid transparent;
-  border-left: 8px solid #666;
+  border-left: 8px solid var(--red);
   transform: translateX(1px);
 }
 
@@ -138,14 +283,15 @@ button {
   margin-bottom: 0;
 }
 
-/* Links */
+/* Links — no blue. Underline carries the affordance instead of a hue change. */
 .rich-editor-scroll .ProseMirror a {
-  color: #0066cc;
+  color: var(--red);
   text-decoration: underline;
+  text-underline-offset: 2px;
   cursor: pointer;
 }
 .rich-editor-scroll .ProseMirror a:hover {
-  color: #004499;
+  text-decoration-thickness: 2px;
 }
 
 /* Lists */
@@ -163,9 +309,9 @@ button {
 
 /* Blockquote */
 .rich-editor-scroll .ProseMirror blockquote {
-  border-left: 3px solid #ddd;
+  border-left: 3px solid var(--red-30);
   padding-left: 1em;
-  color: #666;
+  color: var(--red-70);
   margin: 0.6em 0;
   font-style: italic;
 }
@@ -180,16 +326,16 @@ button {
 .rich-editor-scroll .ProseMirror code {
   font-family: "Cascadia Code", "Fira Code", "Consolas", monospace;
   font-size: 0.82em;
-  background: #f5f5f5;
-  border: 1px solid #e0e0e0;
+  background: var(--red-10);
+  border: 1px solid var(--red-30);
   border-radius: 3px;
   padding: 0.1em 0.3em;
 }
 
 /* Code block */
 .rich-editor-scroll .ProseMirror pre {
-  background: #f5f5f5;
-  border: 1px solid #e0e0e0;
+  background: var(--red-05);
+  border: 1px solid var(--red-30);
   border-radius: 6px;
   padding: 0.9em 1.1em;
   overflow-x: auto;
@@ -205,6 +351,6 @@ button {
 /* Horizontal rule */
 .rich-editor-scroll .ProseMirror hr {
   border: none;
-  border-top: 2px solid #eee;
+  border-top: 2px solid var(--red-30);
   margin: 1em 0;
 }

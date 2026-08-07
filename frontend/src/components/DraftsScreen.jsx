@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { api } from "../api.js";
+import { T } from "../theme.js";
 
 export default function DraftsScreen({ onOpen, onSignOut, authEnabled }) {
   const [drafts, setDrafts] = useState([]);
@@ -56,7 +57,7 @@ export default function DraftsScreen({ onOpen, onSignOut, authEnabled }) {
         <div style={{ position: "absolute", top: 0, right: 24 }}>
           <button
             onClick={onSignOut}
-            style={{ fontSize: 12, color: "#aaa", background: "none", border: "none", cursor: "pointer", paddingTop: 16 }}
+            style={{ fontSize: 12, color: T.textFaint, background: "none", border: "none", cursor: "pointer", paddingTop: 16 }}
           >
             Sign out
           </button>
@@ -72,8 +73,8 @@ export default function DraftsScreen({ onOpen, onSignOut, authEnabled }) {
             padding: "10px 22px",
             fontSize: 14,
             fontWeight: 700,
-            background: "#FF2020",
-            color: "#fff",
+            background: T.text,
+            color: T.onRed,
             border: "none",
             borderRadius: 6,
             cursor: creating ? "default" : "pointer",
@@ -84,10 +85,10 @@ export default function DraftsScreen({ onOpen, onSignOut, authEnabled }) {
         </button>
       </div>
 
-      {loading && <div style={{ color: "#888" }}>Loading…</div>}
-      {error && <div style={{ color: "red", fontSize: 14 }}>{error}</div>}
+      {loading && <div style={{ color: T.textMuted }}>Loading…</div>}
+      {error && <div style={{ color: T.text, fontSize: 14 }}>{error}</div>}
       {!loading && !error && drafts.length === 0 && (
-        <div style={{ color: "#aaa", fontSize: 15 }}>
+        <div style={{ color: T.textFaint, fontSize: 15 }}>
           No drafts yet. Press New Draft to get started.
         </div>
       )}
@@ -98,12 +99,12 @@ export default function DraftsScreen({ onOpen, onSignOut, authEnabled }) {
           style={{
             display: "flex",
             alignItems: "center",
-            border: "1px solid #e0e0e0",
+            border: `1px solid ${T.border}`,
             borderRadius: 8,
             marginBottom: 10,
             padding: "14px 16px",
             gap: 12,
-            background: "#fff",
+            background: T.surface,
           }}
         >
           <input
@@ -116,7 +117,7 @@ export default function DraftsScreen({ onOpen, onSignOut, authEnabled }) {
               border: "none",
               outline: "none",
               fontSize: 15,
-              color: "#222",
+              color: T.text,
               fontFamily: "inherit",
               background: "transparent",
               minWidth: 0,
@@ -128,8 +129,8 @@ export default function DraftsScreen({ onOpen, onSignOut, authEnabled }) {
               padding: "8px 18px",
               fontSize: 13,
               fontWeight: 700,
-              background: "#FF2020",
-              color: "#fff",
+              background: T.text,
+              color: T.onRed,
               border: "none",
               borderRadius: 5,
               cursor: "pointer",
@@ -147,8 +148,8 @@ export default function DraftsScreen({ onOpen, onSignOut, authEnabled }) {
               fontSize: 14,
               fontWeight: 700,
               background: "transparent",
-              color: "#bbb",
-              border: "1px solid #e0e0e0",
+              color: T.textFaint,
+              border: `1px solid ${T.border}`,
               borderRadius: 5,
               cursor: "pointer",
               flexShrink: 0,

@@ -8,12 +8,15 @@
     />
     <title>Redline Writer</title>
     <style>
+      /* Same two colours as the app and the icon — see frontend/src/theme.js.
+         The splash is the first thing on screen, so any other shade here shows
+         up as a flash of the wrong palette before the UI loads. */
       html,
       body {
         margin: 0;
         height: 100%;
-        background: #111;
-        color: #eee;
+        background: #1e1e1e;
+        color: #ed0020;
         font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
         user-select: none;
         cursor: default;
@@ -31,16 +34,16 @@
         letter-spacing: 0.04em;
       }
       .title span {
-        color: #ff3b30;
+        color: #ed0020;
       }
       .rule {
         width: 190px;
         height: 2px;
-        background: linear-gradient(90deg, #ff3b30, #333);
+        background: linear-gradient(90deg, #ed0020, rgba(237, 0, 32, 0));
       }
       #status {
         font-size: 13px;
-        color: #9a9a9a;
+        color: rgba(237, 0, 32, 0.7);
         min-height: 1em;
       }
     </style>

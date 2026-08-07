@@ -307,6 +307,18 @@ function createMainWindow() {
     mainWindow.show();
   });
 
+  // F11 toggles fullscreen. The application menu is removed at startup, and with
+  // it Electron's default View → Toggle Full Screen accelerator, so the key has
+  // to be bound by hand. before-input-event rather than globalShortcut: this must
+  // fire only while the writing window is focused, never steal F11 from whatever
+  // else the user is in. preventDefault stops the page seeing the keystroke too.
+  mainWindow.webContents.on("before-input-event", (event, input) => {
+    if (input.type !== "keyDown" || input.key !== "F11") return;
+    if (input.control || input.alt || input.meta || input.shift) return;
+    event.preventDefault();
+    mainWindow.setFullScreen(!mainWindow.isFullScreen());
+  });
+
   // External links open in the real browser, never inside the writing window.
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
     shell.openExternal(url);

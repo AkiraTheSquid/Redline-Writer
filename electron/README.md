@@ -113,6 +113,15 @@ up as the **previous** version: Electron replays the cached `index.html`, which 
 asset hashes that no longer exist. The symptom is an update that appears to have silently
 done nothing. Do not remove this call without another cache-busting scheme.
 
+### Keyboard shortcuts are bound by hand
+
+`Menu.setApplicationMenu(null)` removes the application menu — and with it every
+accelerator Electron would otherwise have provided for free, including **F11 →
+Toggle Full Screen**. `main.js` re-binds F11 on the window's `before-input-event`.
+Any other shortcut this app should answer to has to be added the same way; nothing
+is inherited. `before-input-event` rather than `globalShortcut`, so the key only
+works while the writing window is focused instead of being taken system-wide.
+
 ### StartupWMClass is easy to get wrong
 
 The desktop entry sets `StartupWMClass=redline-writer-desktop`. Electron takes the window's
@@ -182,6 +191,8 @@ and `splash.html`.
 
 ## Recent Changes
 
+- **2026-08-07** — F11 toggles fullscreen again. Removing the application menu had
+  silently removed its accelerator; the key is now bound on the window itself.
 - **2026-08-07** — Two-colour dark theme across the whole UI (`frontend/src/theme.js`),
   including the splash, window background and native controls. Electron's HTTP cache is
   now cleared on launch — without it the rebuilt UI came up as the previous version.

@@ -69,13 +69,58 @@ as markdown or loose files — `STORAGE_DIR` in `backend/app/config.py` is decla
 Deliberately kept out of the repo root: a root `package.json` would make Vercel install
 Electron during the deployed build (`vercel.json` builds `frontend/` only).
 
+## Packaging an AppImage
+
+```bash
+cd electron
+npm run dist     # build UI -> freeze backend -> electron-builder
+```
+
+Output: `electron/dist/RedlineWriter-0.1.0-x86_64.AppImage` (~140 MB). Runs from anywhere,
+no install step.
+
+**Python is bundled, Postgres is not.** `scripts/build-backend.sh` freezes the FastAPI app
+with PyInstaller into a standalone binary (`backend/desktop_server.py` is its entry point),
+so the target machine needs no Python, no venv and no `pip install`. It still needs **Docker**
+running, because the AppImage starts the same Postgres 17 container the dev stack uses.
+
+Three things ship as `extraResources`, unpacked beside the asar rather than inside it —
+neither a frozen binary nor Python's `StaticFiles` can read from an asar archive:
+
+| Resource | Why |
+|---|---|
+| `backend/redline-backend/` | The frozen API server |
+| `frontend-dist/` | The built UI, which the backend serves |
+| `docker-compose.yml` | Used to start the database container |
+
+### The compose project name matters
+
+`main.js` pins `COMPOSE_PROJECT = "redline-writer-local"`. Docker derives the volume name
+from the project, so the AppImage attaches to the existing `redline-writer-local_redline_pgdata`
+volume and opens your real drafts. **Changing that string would silently create a second,
+empty database** rather than fail — the app would look like it had lost every session.
+
+### Config reaches the frozen backend by environment
+
+There is no `.env` beside a packaged binary, so `main.js` passes `DATABASE_URL`,
+`REDLINE_DIST_DIR`, `REDLINE_PORT` and `REDLINE_HOST` when it spawns the backend.
+`app/main.py` honours `REDLINE_DIST_DIR` because a frozen binary has no source tree to
+walk up from.
+
+Set `REDLINE_BACKEND_PORT` to run the desktop app on its own port instead of adopting a
+dev backend already on 8001 — useful when both are open at once.
+
 ## Not done yet
 
-Packaging to a distributable AppImage. That needs `electron-builder` plus a decision on
-whether to bundle Postgres and Python or require them on the target machine — currently
-both must already exist locally.
+- **Postgres is still a Docker dependency.** Making the AppImage fully self-contained would
+  mean bundling a portable Postgres build, or dropping Postgres for an embedded engine.
+- **No auto-update and no code signing** — `npm run dist` produces an unsigned local artifact.
 
 ## Recent Changes
 
+- **2026-08-07** — AppImage packaging: PyInstaller-frozen backend (`backend/desktop_server.py`,
+  `scripts/build-backend.sh`), electron-builder config with the three extraResources, pinned
+  compose project, `REDLINE_BACKEND_PORT` override, generated `build/icon.png`.
+  Gitignored `backend/build/`.
 - **2026-08-07** — Created. Electron shell, splash, backend static mount for `frontend/dist`,
   `electron/node_modules` + `electron/dist` gitignored.

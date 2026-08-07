@@ -23,11 +23,37 @@ const fs = require("fs");
 const ROOT = path.resolve(__dirname, "..");
 const BACKEND_DIR = path.join(ROOT, "backend");
 const VENV_BIN = path.join(BACKEND_DIR, ".venv", "bin");
-const DIST_DIR = path.join(ROOT, "frontend", "dist");
 
-const BACKEND_PORT = 8001;
+// Packaged, everything the backend needs is unpacked beside the asar (a frozen
+// binary and Python's StaticFiles cannot read from inside an archive). From
+// source, it is the repo tree.
+const PACKAGED = app.isPackaged;
+const RES = process.resourcesPath;
+
+const DIST_DIR = PACKAGED
+  ? path.join(RES, "frontend-dist")
+  : path.join(ROOT, "frontend", "dist");
+const COMPOSE_FILE = PACKAGED
+  ? path.join(RES, "docker-compose.yml")
+  : path.join(ROOT, "docker-compose.yml");
+const FROZEN_BACKEND = PACKAGED
+  ? path.join(RES, "backend", "redline-backend", "redline-backend")
+  : path.join(BACKEND_DIR, "build", "pyinstaller", "dist", "redline-backend", "redline-backend");
+
+// Override to run the desktop app on its own backend port instead of adopting
+// whatever `start.sh` already has on 8001.
+const BACKEND_PORT = Number(process.env.REDLINE_BACKEND_PORT || 8001);
 const VITE_PORT = 5173;
 const DB_PORT = 54330;
+
+// Must match the volume the dev stack already uses. `docker compose` derives the
+// volume name from the project, so a different project name here would silently
+// create a second, empty database instead of opening existing drafts.
+const COMPOSE_PROJECT = "redline-writer-local";
+
+const DATABASE_URL =
+  process.env.DATABASE_URL ||
+  "postgresql+psycopg://postgres:postgres@localhost:54330/redline_writer";
 
 // Dev mode loads the Vite server (hot reload); prod loads the built bundle,
 // which FastAPI serves itself so the UI and API share one origin.
@@ -110,7 +136,16 @@ async function ensureDatabase(status) {
 
   status("Starting PostgreSQL (Docker)…");
   try {
-    await run("docker", ["compose", "up", "-d", "db"]);
+    await run("docker", [
+      "compose",
+      "-f",
+      COMPOSE_FILE,
+      "-p",
+      COMPOSE_PROJECT,
+      "up",
+      "-d",
+      "db",
+    ]);
   } catch (err) {
     throw new Error(
       `Could not start the Postgres container.\n\n${err.message}\n\n` +
@@ -128,25 +163,58 @@ async function ensureBackend(status) {
     return;
   }
 
-  const uvicorn = path.join(VENV_BIN, "uvicorn");
-  const python = path.join(VENV_BIN, "python");
-  if (!fs.existsSync(uvicorn)) {
-    throw new Error(
-      `Python environment missing at ${path.join(BACKEND_DIR, ".venv")}.\n\n` +
-        "Create it once with:\n  cd backend && python3 -m venv .venv && " +
-        "source .venv/bin/activate && pip install -r requirements.txt"
-    );
+  // Environment shared by both launch modes. A frozen binary has no .env beside
+  // it, so config comes through here; app.main reads REDLINE_DIST_DIR to find
+  // the UI it serves.
+  const env = {
+    ...process.env,
+    DATABASE_URL,
+    REDLINE_DIST_DIR: DIST_DIR,
+    REDLINE_PORT: String(BACKEND_PORT),
+    REDLINE_HOST: "127.0.0.1",
+  };
+
+  let cmd;
+  let args;
+
+  if (fs.existsSync(FROZEN_BACKEND)) {
+    // Packaged (or locally built) binary: bundles Python, applies the schema itself.
+    status("Starting backend…");
+    cmd = FROZEN_BACKEND;
+    args = [];
+  } else {
+    if (PACKAGED) {
+      throw new Error(
+        "The bundled backend is missing from this AppImage.\n\n" +
+          `Expected it at: ${FROZEN_BACKEND}`
+      );
+    }
+
+    const uvicorn = path.join(VENV_BIN, "uvicorn");
+    const python = path.join(VENV_BIN, "python");
+    if (!fs.existsSync(uvicorn)) {
+      throw new Error(
+        `Python environment missing at ${path.join(BACKEND_DIR, ".venv")}.\n\n` +
+          "Create it once with:\n  cd backend && python3 -m venv .venv && " +
+          "source .venv/bin/activate && pip install -r requirements.txt"
+      );
+    }
+
+    status("Applying database schema…");
+    await run(python, [path.join("scripts", "init_db.py")], { cwd: BACKEND_DIR, env });
+
+    status("Starting backend…");
+    cmd = uvicorn;
+    args = ["app.main:app", "--host", "127.0.0.1", "--port", String(BACKEND_PORT)];
   }
 
-  status("Applying database schema…");
-  await run(python, [path.join("scripts", "init_db.py")], { cwd: BACKEND_DIR });
-
-  status("Starting backend…");
-  const proc = spawn(
-    uvicorn,
-    ["app.main:app", "--host", "127.0.0.1", "--port", String(BACKEND_PORT)],
-    { cwd: BACKEND_DIR, stdio: ["ignore", "pipe", "pipe"] }
-  );
+  const proc = spawn(cmd, args, {
+    // The repo's backend/ does not exist inside an AppImage; run the frozen
+    // binary from its own directory instead.
+    cwd: cmd === FROZEN_BACKEND ? path.dirname(FROZEN_BACKEND) : BACKEND_DIR,
+    env,
+    stdio: ["ignore", "pipe", "pipe"],
+  });
   proc.stdout.on("data", (d) => process.stdout.write(`[backend] ${d}`));
   proc.stderr.on("data", (d) => process.stderr.write(`[backend] ${d}`));
   proc.on("exit", (code) => console.log(`[backend] exited (${code})`));

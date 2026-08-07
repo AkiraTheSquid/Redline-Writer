@@ -16,6 +16,9 @@ frontend/dist/
 electron/node_modules/
 electron/dist/
 
+# PyInstaller output for the packaged backend (rebuilt by npm run build:backend)
+backend/build/
+
 # Logs
 *.log
 backend/uvicorn.log

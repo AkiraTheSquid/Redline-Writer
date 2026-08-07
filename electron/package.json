@@ -3,14 +3,58 @@
   "private": true,
   "version": "0.1.0",
   "description": "Electron desktop shell for Redline Writer (local Postgres, no sign-in)",
+  "author": "Seth Gibson",
   "main": "main.js",
   "scripts": {
     "start": "electron .",
     "start:prod": "REDLINE_MODE=prod electron .",
     "build:ui": "cd ../frontend && npm install && npm run build",
-    "desktop": "npm run build:ui && npm run start:prod"
+    "build:backend": "bash scripts/build-backend.sh",
+    "desktop": "npm run build:ui && npm run start:prod",
+    "dist": "npm run build:ui && npm run build:backend && electron-builder --linux AppImage"
   },
   "devDependencies": {
-    "electron": "^33.2.1"
+    "electron": "^33.2.1",
+    "electron-builder": "^25.1.8"
+  },
+  "build": {
+    "appId": "com.sethgibson.redlinewriter",
+    "productName": "Redline Writer",
+    "directories": {
+      "output": "dist",
+      "buildResources": "build"
+    },
+    "files": [
+      "main.js",
+      "preload.js",
+      "splash.html",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "../frontend/dist",
+        "to": "frontend-dist"
+      },
+      {
+        "from": "../backend/build/pyinstaller/dist/redline-backend",
+        "to": "backend/redline-backend"
+      },
+      {
+        "from": "../docker-compose.yml",
+        "to": "docker-compose.yml"
+      }
+    ],
+    "linux": {
+      "target": [
+        "AppImage"
+      ],
+      "category": "Office",
+      "icon": "build/icon.png",
+      "synopsis": "Write-or-die writing app",
+      "description": "Timed writing sessions that delete your work if you stop typing. Stores sessions in a local PostgreSQL database. No account required."
+    },
+    "appImage": {
+      "artifactName": "RedlineWriter-${version}-${arch}.AppImage"
+    }
   }
 }

@@ -1,8 +1,10 @@
 from datetime import datetime, timezone
+from pathlib import Path
 from uuid import UUID
 
 from fastapi import FastAPI, Depends, HTTPException, Response
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session as DBSession
 
 from .db import get_db
@@ -103,3 +105,14 @@ def delete_session(session_id: UUID, db: DBSession = Depends(get_db)):
     db.delete(session)
     db.commit()
     return Response(status_code=204)
+
+
+# ─── Built frontend (Electron desktop mode) ──────────────────────────────────
+# Serving frontend/dist from the API process gives the desktop app a single
+# origin, so the UI's relative fetch("/sessions") calls need no rewriting and
+# no CORS. Mounted last: every route above is matched before this catch-all.
+# Skipped entirely when the bundle has not been built (plain `uvicorn` dev use).
+_DIST_DIR = Path(__file__).resolve().parents[2] / "frontend" / "dist"
+
+if (_DIST_DIR / "index.html").is_file():
+    app.mount("/", StaticFiles(directory=_DIST_DIR, html=True), name="frontend")

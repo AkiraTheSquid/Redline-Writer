@@ -1,0 +1,16 @@
+{
+  "name": "redline-writer-desktop",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Electron desktop shell for Redline Writer (local Postgres, no sign-in)",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "start:prod": "REDLINE_MODE=prod electron .",
+    "build:ui": "cd ../frontend && npm install && npm run build",
+    "desktop": "npm run build:ui && npm run start:prod"
+  },
+  "devDependencies": {
+    "electron": "^33.2.1"
+  }
+}

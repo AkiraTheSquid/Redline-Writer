@@ -12,6 +12,10 @@ backend/.env
 frontend/node_modules/
 frontend/dist/
 
+# Electron desktop shell deps & packaged output
+electron/node_modules/
+electron/dist/
+
 # Logs
 *.log
 backend/uvicorn.log

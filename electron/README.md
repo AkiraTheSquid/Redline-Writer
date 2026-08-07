@@ -189,8 +189,18 @@ places outside the React app have to be kept in step by hand, because they paint
 stylesheet loads: `WINDOW_BG` in `main.js`, the `<style>` block in `frontend/index.html`,
 and `splash.html`.
 
+The one thing on screen that is not one of those two colours is the danger inversion during
+a session (`.danger-invert` in `frontend/src/index.css`), and it is not an exception to the
+rule: it introduces no colour of its own, it inverts the pixels already there. Note that a
+*partial* inversion is not usable — `invert(0.5)` collapses both `#1E1E1E` and `#ED0020` onto
+the same grey and the text disappears — so the filter is pinned at `invert(1)` and only the
+masked area ramps.
+
 ## Recent Changes
 
+- **2026-08-07** — The low-WPM warning is now a full-screen colour inversion that creeps in
+  from the edges as deletion approaches, replacing the red pads flanking the editor. It also
+  tracks the inactivity countdown, which previously had no visual warning at all.
 - **2026-08-07** — F11 toggles fullscreen again. Removing the application menu had
   silently removed its accelerator; the key is now bound on the window itself.
 - **2026-08-07** — Two-colour dark theme across the whole UI (`frontend/src/theme.js`),

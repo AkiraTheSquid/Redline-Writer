@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import { api } from "../api.js";
-import { T, red } from "../theme.js";
+import { T } from "../theme.js";
 import SettingsModal from "./SettingsModal.jsx";
 import RichEditor, { extractTiptapHeaders } from "./RichEditor.jsx";
 
@@ -36,23 +36,32 @@ function beep(frequency = 750, durationMs = 150) {
   }
 }
 
-// The pads flanking the editor are the WPM gauge. With a single hue available,
-// the signal is intensity rather than colour: full red when you are about to
-// lose the draft, fading into the background once you are clear of the minimum.
-// Index 0 = danger, last index = fully calm (transparent, so the pads read as
-// plain background).
-const SIDEBAR_STEPS = 10;
-const SIDEBAR_COLORS = Array.from({ length: SIDEBAR_STEPS }, (_, i) =>
-  red(1 - i / (SIDEBAR_STEPS - 1))
-);
-const SIDEBAR_CALM = SIDEBAR_COLORS[SIDEBAR_STEPS - 1];
+// ─── danger level ───────────────────────────────────────────────────────────
+// One number, 0 → 1, meaning "how close is this draft to being deleted". It
+// drives the screen inversion (see `.danger-invert` in index.css): 0 leaves the
+// app alone, 1 is the whole screen fully inverted. Both deletion triggers feed
+// it and the nearer one wins, so the warning always tracks whatever is actually
+// about to fire.
 
-function getSidebarColor(currentWpm, minWpm) {
+// WPM. Deletion is instant the moment WPM drops under the minimum, so there is
+// no countdown to read — distance above the minimum is the warning. Clear by 10
+// and you are calm; within 1 and the next tick could take the draft.
+function wpmDanger(currentWpm, minWpm) {
   const delta = currentWpm - minWpm;
-  if (delta <= 1) return SIDEBAR_COLORS[0];
-  if (delta >= 10) return SIDEBAR_COLORS[9];
-  const idx = Math.min(8, Math.max(1, Math.floor(((delta - 1) * 8) / 9) + 1));
-  return SIDEBAR_COLORS[idx];
+  if (delta <= 1) return 1;
+  if (delta >= 10) return 0;
+  return 1 - (delta - 1) / 9;
+}
+
+// Inactivity. This one is a real countdown: the fraction of the idle threshold
+// already burned. Sitting still fills the screen at a steady, readable rate.
+function inactivityDanger(idleSec, thresholdSec) {
+  if (!thresholdSec) return 0;
+  return Math.min(1, idleSec / thresholdSec);
+}
+
+function clamp01(n) {
+  return Math.min(1, Math.max(0, n));
 }
 
 const BLOCKED_KEYS = new Set([
@@ -103,7 +112,7 @@ export default function WritingScreen({ draft, onEnd }) {
   // ── Display state ────────────────────────────────────────────────────────
   const [displayWpm, setDisplayWpm] = useState(0);
   const [displayTime, setDisplayTime] = useState(0);
-  const [sidebarColor, setSidebarColor] = useState(SIDEBAR_CALM);
+  const [danger, setDanger] = useState(0);
   const [outcome, setOutcome] = useState(null);
   const [outlineItems, setOutlineItems] = useState([]);
   const [intervalIndex, setIntervalIndex] = useState(0);
@@ -234,7 +243,7 @@ export default function WritingScreen({ draft, onEnd }) {
       setIntervalIndex(0);
       setDisplayTime(0);
       setDisplayWpm(0);
-      setSidebarColor(SIDEBAR_CALM);
+      setDanger(0);
       setOutcome(outcomeStr);
       return;
     }
@@ -265,7 +274,7 @@ export default function WritingScreen({ draft, onEnd }) {
     setIntervalIndex(0);
     setDisplayTime(0);
     setDisplayWpm(0);
-    setSidebarColor(SIDEBAR_CALM);
+    setDanger(0);
   }, []);
 
   // ── startIntervalAt ───────────────────────────────────────────────────────
@@ -372,7 +381,6 @@ export default function WritingScreen({ draft, onEnd }) {
       const netWords = Math.max(0, wordCount - baselineWordsRef.current);
       const wpm = wpmElapsedSec > 0 ? Math.round((netWords * 60) / wpmElapsedSec) : 0;
       setDisplayWpm(wpm);
-      setSidebarColor(isBreakLocal ? SIDEBAR_CALM : getSidebarColor(wpm, minWpmLocal));
 
       if (isWorkModeLocal && inactEnabled) {
         if (charCount > 0) hasTypedRef.current = true;
@@ -391,6 +399,23 @@ export default function WritingScreen({ draft, onEnd }) {
 
         if (wpmElapsedSec >= wpmGracePeriod && wpm < minWpmLocal) { clearInterval(timer); endSession("deleted_wpm"); return; }
       }
+
+      // Screen inversion. Deliberately gated on exactly the same conditions as
+      // the deletion rules above (work mode, not a break, inactivity enabled —
+      // the WPM rule lives inside that same branch), because a warning that
+      // fires when nothing can delete the draft is just noise.
+      let nextDanger = 0;
+      if (isWorkModeLocal && inactEnabled && !isBreakLocal) {
+        // WPM cannot delete anything until the grace period is up, and WPM
+        // reads 0 for the first few seconds of every interval — without this
+        // the screen would invert hard the instant a session began.
+        const graceProgress = clamp01(wpmElapsedSec / Math.max(1, wpmGracePeriod));
+        nextDanger = Math.max(
+          wpmDanger(wpm, minWpmLocal) * graceProgress,
+          inactivityDanger(inactivitySecRef.current, Math.max(1, inactThreshold)),
+        );
+      }
+      setDanger(clamp01(nextDanger));
 
       // Autosave every 2 ticks
       autosaveTickRef.current += 1;
@@ -446,8 +471,9 @@ export default function WritingScreen({ draft, onEnd }) {
 
   const editorArea = (
     <div style={{ display: "flex", flex: 1, overflow: "hidden" }}>
-      {/* Left pad */}
-      <div style={{ width: LEFT_PAD_W, flexShrink: 0, background: sidebarColor, transition: "background 0.4s" }} />
+      {/* Left pad — margin only. The WPM warning used to be painted here; it is
+          now the whole-screen inversion in the session-mode return below. */}
+      <div style={{ width: LEFT_PAD_W, flexShrink: 0, background: T.bg }} />
 
       {/* Outline */}
       <div style={{ width: OUTLINE_W, flexShrink: 0, padding: "12px 10px", background: T.bg, overflowY: "auto" }}>
@@ -486,8 +512,8 @@ export default function WritingScreen({ draft, onEnd }) {
         dontRedactHeaders={dontRedactHeaders}
       />
 
-      {/* Right pad */}
-      <div style={{ width: RIGHT_PAD_W, flexShrink: 0, background: sidebarColor, transition: "background 0.4s" }} />
+      {/* Right pad — see the left pad */}
+      <div style={{ width: RIGHT_PAD_W, flexShrink: 0, background: T.bg }} />
     </div>
   );
 
@@ -598,6 +624,11 @@ export default function WritingScreen({ draft, onEnd }) {
       </div>
 
       {editorArea}
+
+      {/* The warning. Inverts what is already on screen rather than drawing on
+          top of it, so nothing is hidden and no third colour is introduced —
+          see index.css for the gradient and the --danger custom property. */}
+      <div className="danger-invert" style={{ "--danger": danger }} aria-hidden="true" />
     </div>
   );
 }

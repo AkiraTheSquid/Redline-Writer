@@ -69,6 +69,34 @@ as markdown or loose files — `STORAGE_DIR` in `backend/app/config.py` is decla
 Deliberately kept out of the repo root: a root `package.json` would make Vercel install
 Electron during the deployed build (`vercel.json` builds `frontend/` only).
 
+## Installing it as a real desktop app
+
+```bash
+cd electron
+npm run app      # build + package + install into the applications menu
+```
+
+That is the whole thing: "Redline Writer" appears in the applications menu with the
+looping-line icon, launches on click, and needs no terminal. Everything lands under
+`~/.local`, so no root:
+
+| What | Where |
+|---|---|
+| Binary | `~/.local/bin/redline-writer.AppImage` |
+| Launcher | `~/.local/share/applications/redline-writer.desktop` |
+| Icons | `~/.local/share/icons/hicolor/{128,256,512,1024}x*/apps/` + `scalable/` |
+
+The AppImage is **copied** to `~/.local/bin` rather than symlinked, so rebuilding
+`electron/dist/` never breaks the installed launcher. Re-run `npm run app` to update it.
+
+### StartupWMClass is easy to get wrong
+
+The desktop entry sets `StartupWMClass=redline-writer-desktop`. Electron takes the window's
+`WM_CLASS` from package.json **`name`**, not `productName` — so the obvious guess
+("Redline Writer") is wrong, and the symptom is subtle: the app still launches, but the
+running window shows a generic icon and will not group with or pin to the launcher.
+Check with `xprop WM_CLASS` after any rename.
+
 ## Packaging an AppImage
 
 ```bash
@@ -112,12 +140,20 @@ dev backend already on 8001 — useful when both are open at once.
 
 ## Not done yet
 
-- **Postgres is still a Docker dependency.** Making the AppImage fully self-contained would
-  mean bundling a portable Postgres build, or dropping Postgres for an embedded engine.
+- **Postgres is still a Docker dependency.** The Docker service is enabled at boot and the
+  container carries `restart: unless-stopped`, so in practice the database is already up
+  before the app launches — and the app starts it if not. Removing Docker entirely would
+  mean either bundling a portable Postgres build or moving to a per-user cluster via the
+  system `initdb`, and migrating the existing volume with `pg_dump`. That relocates live
+  data, so it is a deliberate decision rather than a cleanup.
 - **No auto-update and no code signing** — `npm run dist` produces an unsigned local artifact.
 
 ## Recent Changes
 
+- **2026-08-07** — Desktop integration: `scripts/install-desktop.sh` (`npm run app`), icon
+  built from `build/icon.svg`, corrected `StartupWMClass`. Cold-start verified: with the
+  container stopped, the app brought it up on the pinned project and all 5 existing drafts
+  were still present.
 - **2026-08-07** — AppImage packaging: PyInstaller-frozen backend (`backend/desktop_server.py`,
   `scripts/build-backend.sh`), electron-builder config with the three extraResources, pinned
   compose project, `REDLINE_BACKEND_PORT` override, generated `build/icon.png`.

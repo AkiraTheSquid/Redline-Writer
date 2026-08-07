@@ -11,7 +11,9 @@
     "build:ui": "cd ../frontend && npm install && npm run build",
     "build:backend": "bash scripts/build-backend.sh",
     "desktop": "npm run build:ui && npm run start:prod",
-    "dist": "npm run build:ui && npm run build:backend && electron-builder --linux AppImage"
+    "dist": "npm run build:ui && npm run build:backend && electron-builder --linux AppImage",
+    "install:desktop": "bash scripts/install-desktop.sh",
+    "app": "npm run dist && npm run install:desktop"
   },
   "devDependencies": {
     "electron": "^33.2.1",

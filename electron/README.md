@@ -89,6 +89,22 @@ looping-line icon, launches on click, and needs no terminal. Everything lands un
 The AppImage is **copied** to `~/.local/bin` rather than symlinked, so rebuilding
 `electron/dist/` never breaks the installed launcher. Re-run `npm run app` to update it.
 
+### Changing the icon
+
+`build/icon.svg` is the source. After replacing it:
+
+```bash
+npm run render:icon    # icon.svg -> icon.png (1024px master)
+npm run app            # repackage + reinstall
+```
+
+**Never let ImageMagick read the SVG.** `convert` has no librsvg delegate on this machine, so
+it falls back to its internal MSVG renderer, which ignores the icon's `clipPath` and produces
+an inverted white square with the artwork missing — and exits 0, so it looks like it worked.
+`scripts/render-icon.sh` uses cairosvg instead; everything downstream resizes the PNG master,
+which ImageMagick handles fine. The `scalable` icon entry ships the SVG as-is because GTK
+renders it through librsvg, which is correct.
+
 ### StartupWMClass is easy to get wrong
 
 The desktop entry sets `StartupWMClass=redline-writer-desktop`. Electron takes the window's

@@ -12,6 +12,7 @@
     "build:backend": "bash scripts/build-backend.sh",
     "desktop": "npm run build:ui && npm run start:prod",
     "dist": "npm run build:ui && npm run build:backend && electron-builder --linux AppImage",
+    "render:icon": "bash scripts/render-icon.sh",
     "install:desktop": "bash scripts/install-desktop.sh",
     "app": "npm run dist && npm run install:desktop"
   },

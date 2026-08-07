@@ -19,6 +19,9 @@ electron/dist/
 # PyInstaller output for the packaged backend (rebuilt by npm run build:backend)
 backend/build/
 
+# Throwaway venv used only to render the icon SVG
+electron/build/.iconvenv/
+
 # Logs
 *.log
 backend/uvicorn.log

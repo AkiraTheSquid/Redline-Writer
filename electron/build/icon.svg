@@ -1,7 +1,14 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="29 35 735 735" width="735" height="735" role="img" aria-label="A single continuous red line rising from lower left to upper right, curling into four loops along the way, on a dark gray field.">
-  <rect x="29" y="35" width="735" height="735" fill="#1E1E1E"/>
-  <path fill="none" stroke="#ED0020" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"
-        d="M 55 628
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 330 330" width="512" height="512" role="img" aria-label="App icon: a single continuous red line curling through two loops on a dark gray rounded square.">
+  <defs>
+    <clipPath id="squircle">
+      <rect width="330" height="330" rx="72.6" ry="72.6"/>
+    </clipPath>
+  </defs>
+  <g clip-path="url(#squircle)">
+    <rect width="330" height="330" fill="#1E1E1E"/>
+    <g transform="translate(-64 -364)">
+      <path fill="none" stroke="#ED0020" stroke-width="8.5" stroke-linecap="round" stroke-linejoin="round"
+            d="M 55 628
      C 55.5 627 55.4 625.8 56 624.9 C 61.9 614.4 71.9 606.8 81 599 C 94.8 587 110.2 576.4 127 569.3 C 138.6 564.4 151.4 560.3 164 561.2
      C 171.1 561.7 178.6 564.5 183.9 569.4 C 191.6 576.5 195.9 588.6 194.6 599 C 193.6 607.5 189.9 615.9 185.1 623 C 183.4 625.4 181.6 627.7 179.6 629.8
      C 178.1 631.4 176.6 632.8 175 634.1 C 169.6 638.3 174.9 634.6 169 638 C 166.2 639.6 168.9 638.1 166 639.5 C 163.2 640.9 165.9 639.7 163 640.8
@@ -23,4 +30,6 @@
      C 628.2 331.4 630.8 329 628 331.4 C 626.1 332.9 624.1 334.4 622 335.7 C 621 336.3 620 336.8 619 337.3 C 618 337.8 617 338.1 616 338.5
      C 610.6 340.3 604.1 340.3 599 337.7 C 593.3 334.8 588.9 329 586.6 323 C 582.5 312.1 583.8 299.2 587 288 C 591.9 270.8 603.2 255.8 614.6 242
      C 645.8 204.2 692.7 180.9 738 162"/>
+    </g>
+  </g>
 </svg>

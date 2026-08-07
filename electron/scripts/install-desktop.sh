@@ -32,13 +32,18 @@ cp -f "$SOURCE_APPIMAGE" "$INSTALLED_APPIMAGE"
 chmod +x "$INSTALLED_APPIMAGE"
 
 echo "==> Installing icons"
+# Downscale from the 1024px master, never from the SVG: ImageMagick's built-in
+# renderer ignores the icon's clipPath and produces an inverted white blob.
+# build/icon.png is rendered from build/icon.svg by scripts/render-icon.sh.
 for size in 128 256 512 1024; do
   dir="$ICON_ROOT/${size}x${size}/apps"
   mkdir -p "$dir"
-  convert -background none -density 400 "$ELECTRON_DIR/build/icon.svg" \
+  convert "$ELECTRON_DIR/build/icon.png" \
     -resize "${size}x${size}" -depth 8 -define png:color-type=6 \
     "$dir/$APP_ID.png"
 done
+# GTK renders SVGs with librsvg, which handles the clipPath correctly, so the
+# scalable entry can be the source file as-is.
 mkdir -p "$ICON_ROOT/scalable/apps"
 cp -f "$ELECTRON_DIR/build/icon.svg" "$ICON_ROOT/scalable/apps/$APP_ID.svg"
 

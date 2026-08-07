@@ -36,16 +36,14 @@ function beep(frequency = 750, durationMs = 150) {
   }
 }
 
-// ─── danger level ───────────────────────────────────────────────────────────
-// One number, 0 → 1, meaning "how close is this draft to being deleted". It
-// drives the screen inversion (see `.danger-invert` in index.css): 0 leaves the
-// app alone, 1 is the whole screen fully inverted. Both deletion triggers feed
-// it and the nearer one wins, so the warning always tracks whatever is actually
-// about to fire.
-
-// WPM. Deletion is instant the moment WPM drops under the minimum, so there is
-// no countdown to read — distance above the minimum is the warning. Clear by 10
-// and you are calm; within 1 and the next tick could take the draft.
+// The warning is the whole app changing colour. `danger` runs 0 → 1, and
+// index.css slides the two theme colours past each other as it climbs: at 1 the
+// background is red and the text is ink. It used to be the two pads flanking
+// the editor going red on their own, which is a corner of the screen you are
+// not looking at while you write.
+//
+// Same curve the pads used: clear of the minimum by 10 and you are calm, within
+// 1 of it and the next tick could take the draft.
 function wpmDanger(currentWpm, minWpm) {
   const delta = currentWpm - minWpm;
   if (delta <= 1) return 1;
@@ -53,8 +51,8 @@ function wpmDanger(currentWpm, minWpm) {
   return 1 - (delta - 1) / 9;
 }
 
-// Inactivity. This one is a real countdown: the fraction of the idle threshold
-// already burned. Sitting still fills the screen at a steady, readable rate.
+// Inactivity is the other way to lose the draft, and unlike WPM it is a plain
+// countdown: the share of the idle threshold already spent.
 function inactivityDanger(idleSec, thresholdSec) {
   if (!thresholdSec) return 0;
   return Math.min(1, idleSec / thresholdSec);
@@ -329,6 +327,21 @@ export default function WritingScreen({ draft, onEnd }) {
     return () => window.removeEventListener("copy", onCopy, true);
   }, [sessionMode, effectivePreventCopy]);
 
+  // ── Publish the danger level to the stylesheet ───────────────────────────
+  // Set on <html> rather than passed down as props: every colour in the app
+  // already resolves to var(--ink)/var(--red) (see theme.js), so one property
+  // on the root turns the entire UI over at once — editor, top bar, modals,
+  // scrollbars, form controls. index.css transitions it, so the crossover
+  // slides rather than stepping with the 1s ticker.
+  useEffect(() => {
+    document.documentElement.style.setProperty("--danger", String(danger));
+  }, [danger]);
+
+  // Leaving the screen mid-session must not strand the app mid-crossover.
+  useEffect(() => () => {
+    document.documentElement.style.removeProperty("--danger");
+  }, []);
+
   // ── Main ticker (session mode only) ──────────────────────────────────────
   useEffect(() => {
     if (!sessionMode || outcome) return;
@@ -400,15 +413,15 @@ export default function WritingScreen({ draft, onEnd }) {
         if (wpmElapsedSec >= wpmGracePeriod && wpm < minWpmLocal) { clearInterval(timer); endSession("deleted_wpm"); return; }
       }
 
-      // Screen inversion. Deliberately gated on exactly the same conditions as
-      // the deletion rules above (work mode, not a break, inactivity enabled —
-      // the WPM rule lives inside that same branch), because a warning that
-      // fires when nothing can delete the draft is just noise.
+      // Gated on exactly the conditions the deletion rules above run under —
+      // work mode, not a break, inactivity enabled (the WPM check lives inside
+      // that same branch). Colouring the app for a rule that cannot fire would
+      // be a false alarm.
       let nextDanger = 0;
       if (isWorkModeLocal && inactEnabled && !isBreakLocal) {
-        // WPM cannot delete anything until the grace period is up, and WPM
-        // reads 0 for the first few seconds of every interval — without this
-        // the screen would invert hard the instant a session began.
+        // WPM reads 0 for the first seconds of every interval and cannot delete
+        // anything until the grace period is up. Without easing its share in,
+        // the app would go fully red the instant a session started.
         const graceProgress = clamp01(wpmElapsedSec / Math.max(1, wpmGracePeriod));
         nextDanger = Math.max(
           wpmDanger(wpm, minWpmLocal) * graceProgress,
@@ -471,8 +484,8 @@ export default function WritingScreen({ draft, onEnd }) {
 
   const editorArea = (
     <div style={{ display: "flex", flex: 1, overflow: "hidden" }}>
-      {/* Left pad — margin only. The WPM warning used to be painted here; it is
-          now the whole-screen inversion in the session-mode return below. */}
+      {/* Left pad — margin only now. It used to carry the WPM gauge; the
+          warning is the whole app's colour, so this is plain background. */}
       <div style={{ width: LEFT_PAD_W, flexShrink: 0, background: T.bg }} />
 
       {/* Outline */}
@@ -624,11 +637,6 @@ export default function WritingScreen({ draft, onEnd }) {
       </div>
 
       {editorArea}
-
-      {/* The warning. Inverts what is already on screen rather than drawing on
-          top of it, so nothing is hidden and no third colour is introduced —
-          see index.css for the gradient and the --danger custom property. */}
-      <div className="danger-invert" style={{ "--danger": danger }} aria-hidden="true" />
     </div>
   );
 }

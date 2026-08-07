@@ -1,13 +1,56 @@
 /* Two colours only — see src/theme.js for the rule and the tokens.
-   :root mirrors them so plain CSS below can use them too. */
+   Everything in the app, JSX and CSS alike, draws from the variables below. */
+
+/* --danger: 0 when the draft is safe, 1 the moment before it is deleted.
+   WritingScreen sets it on <html> during a session. Registering it tells the
+   browser it is a number, which is what lets it be transitioned — as a plain
+   custom property it would jump in whole steps once a second with the session
+   ticker instead of sliding. */
+@property --danger {
+  syntax: "<number>";
+  inherits: true;
+  initial-value: 0;
+}
+
 :root {
-  --ink: #1E1E1E;
-  --red: #ED0020;
-  --red-05: rgba(237, 0, 32, 0.05);
-  --red-10: rgba(237, 0, 32, 0.10);
-  --red-30: rgba(237, 0, 32, 0.30);
-  --red-45: rgba(237, 0, 32, 0.45);
-  --red-70: rgba(237, 0, 32, 0.70);
+  /* The two fixed poles. These are the only literal colours in the app. */
+  --ink-base: #1E1E1E;
+  --red-base: #ED0020;
+
+  --danger: 0;
+  /* Just under the ticker's 1s, so each step has landed before the next. */
+  transition: --danger 900ms linear;
+
+  /* The live pair. At --danger 0 they are themselves; at 1 they have traded
+     places, so the background is red and the text is ink. In between, every
+     colour in the app slides across together — one continuous crossover rather
+     than a switch, which is the whole warning.
+
+     The background travels straight: a steady, readable slide toward red.
+
+     The text does the same trip on a steeper curve, and that is not a stylistic
+     choice. Both colours are travelling the same line between the same two
+     points, so there is necessarily a moment where they meet and the text is
+     invisible against its own background — with both linear that moment is
+     dead centre, and that is exactly where a writer hovering just above the
+     minimum WPM would sit indefinitely, unable to read a word. The meeting
+     point cannot be removed — the two are walking the same line in opposite
+     directions — but it can be made to pass in an instant instead of being a
+     plateau you can park on. Hence 1600%: the text crosses over inside a band
+     about 0.03 wide, so it reads as the text snapping to ink once the
+     background is halfway, and the background keeps sliding the whole way.
+     Lower the 1600% for a softer text crossfade and a wider unreadable window. */
+  --ink: color-mix(in srgb, var(--red-base) calc(var(--danger) * 100%), var(--ink-base));
+  --red: color-mix(in srgb,
+           var(--ink-base) clamp(0%, calc((var(--danger) - 0.5) * 1600% + 50%), 100%),
+           var(--red-base));
+
+  /* Derived from --red rather than restated, so they cross over with it. */
+  --red-05: rgb(from var(--red) r g b / 0.05);
+  --red-10: rgb(from var(--red) r g b / 0.10);
+  --red-30: rgb(from var(--red) r g b / 0.30);
+  --red-45: rgb(from var(--red) r g b / 0.45);
+  --red-70: rgb(from var(--red) r g b / 0.70);
 
   color-scheme: dark;
   /* Paints native widgets — checkboxes, radios, focus rings, the number-input
@@ -114,12 +157,17 @@ input[type="checkbox"]:disabled:checked {
 select {
   appearance: none;
   -webkit-appearance: none;
-  /* Red chevron, inlined as a data URI — an external asset would break the
-     Electron build's single-origin load. Leave room for it on the right. */
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 6'%3E%3Cpath d='M0 0h10L5 6z' fill='%23ED0020'/%3E%3C/svg%3E");
+  /* The dropdown chevron, drawn as two gradient halves rather than an inline
+     SVG. An SVG data URI would have to hard-code its own fill, and a hard-coded
+     colour is the one thing that cannot cross over during the danger swap —
+     the arrow would stay red while the rest of the app went to ink. Gradients
+     take var(--red) directly. */
+  background-image:
+    linear-gradient(45deg, transparent 50%, var(--red) 50%),
+    linear-gradient(135deg, var(--red) 50%, transparent 50%);
+  background-position: right 14px center, right 9px center;
+  background-size: 5px 5px, 5px 5px;
   background-repeat: no-repeat;
-  background-position: right 10px center;
-  background-size: 9px 6px;
   /* !important because every <select> is styled inline with a `padding`
      shorthand, which would otherwise reset padding-right and leave the arrow
      sitting on top of the label text. */
@@ -156,61 +204,6 @@ input[type="number"]::-webkit-inner-spin-button {
 }
 ::-webkit-scrollbar-thumb:hover {
   background: var(--red-70);
-}
-
-/* ── Danger inversion ────────────────────────────────────────────────────────
-   The "you are about to lose this draft" warning. It inverts whatever is
-   already on screen instead of painting over it: nothing is obscured, the
-   editor stays readable, and — since inversion is a transform of the existing
-   pixels rather than a new colour — it does not break the two-colour rule in
-   theme.js. Ink goes pale, red goes to its complement; there is no mistaking it.
-
-   Driven by --danger (0 = calm, 1 = deletion imminent), set inline by
-   WritingScreen. What ramps is the *area*: the inversion creeps in from the
-   edges of the screen and closes on the centre, reaching every pixel at 1.
-
-   The inversion itself is always full, never partial, and that is deliberate.
-   invert(0.5) maps both #ED0020 and #1E1E1E to nearly the same grey — ramping
-   the filter amount makes the whole screen pass through a point where the text
-   is genuinely invisible, exactly when the writer most needs to keep typing.
-   Holding invert at 1 and moving a soft front instead means every pixel is
-   either untouched or cleanly inverted, and the illegible blend is confined to
-   a narrow moving band. */
-
-/* Registered so the browser knows --danger is a number and can interpolate it.
-   Without @property it is just a string, transitions do nothing, and the
-   warning would jump in 1-second steps as the session ticker fires. */
-@property --danger {
-  syntax: "<number>";
-  inherits: false;
-  initial-value: 0;
-}
-
-.danger-invert {
-  position: fixed;
-  inset: 0;
-  z-index: 100;
-  pointer-events: none; /* never intercepts a click meant for the editor */
-
-  --danger: 0;
-  transition: --danger 900ms linear; /* just under the 1s tick, so it never stalls */
-
-  backdrop-filter: invert(1);
-  -webkit-backdrop-filter: invert(1);
-
-  /* --edge is the inner boundary of the inverted region: it starts outside the
-     viewport (nothing inverted) and closes on the centre. --core is the alpha
-     at the very centre, held at 0 until the last stretch so the text stays
-     clean for as long as possible, then taken to 1 exactly when --danger hits
-     1 — which is what makes the final state the entire screen, uniformly
-     inverted. Both are clamped by the UA, so the out-of-range values read as
-     the nearest legal one. The third stop keeps the feather a fixed 20% wide
-     wherever the front happens to be — with only two stops the soft band
-     stretches as the front closes in and the entire screen turns to murk. */
-  --edge: calc(112% - var(--danger) * 132%);
-  --core: calc(var(--danger) * 5 - 4);
-  -webkit-mask-image: radial-gradient(ellipse at center, rgb(0 0 0 / var(--core)) var(--edge), rgb(0 0 0) calc(var(--edge) + 20%), rgb(0 0 0) 100%);
-  mask-image: radial-gradient(ellipse at center, rgb(0 0 0 / var(--core)) var(--edge), rgb(0 0 0) calc(var(--edge) + 20%), rgb(0 0 0) 100%);
 }
 
 .redacted-editor {

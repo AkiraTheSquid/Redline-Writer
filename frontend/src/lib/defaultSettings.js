@@ -53,10 +53,6 @@ function sanitizeIntervals(value) {
 /** Coerce anything (stored JSON, a modal submission) into a valid settings object. */
 export function sanitizeSettings(raw) {
   const cfg = raw && typeof raw === "object" ? raw : {};
-  const inactivityEnabled =
-    cfg.inactivity_enabled === undefined
-      ? BUILT_IN_DEFAULTS.inactivity_enabled
-      : !!cfg.inactivity_enabled;
 
   return {
     duration_min: positiveInt(cfg.duration_min, BUILT_IN_DEFAULTS.duration_min),
@@ -64,11 +60,17 @@ export function sanitizeSettings(raw) {
     prevent_copy: !!cfg.prevent_copy,
     redact_text: !!cfg.redact_text,
     dont_redact_headers: !!cfg.dont_redact_headers,
-    inactivity_enabled: inactivityEnabled,
-    // 0 is meaningful here: it is how "inactivity deletion is off" is encoded.
-    inactivity_threshold_sec: inactivityEnabled
-      ? positiveInt(cfg.inactivity_threshold_sec, BUILT_IN_DEFAULTS.inactivity_threshold_sec)
-      : 0,
+    inactivity_enabled:
+      cfg.inactivity_enabled === undefined
+        ? BUILT_IN_DEFAULTS.inactivity_enabled
+        : !!cfg.inactivity_enabled,
+    // Kept even while inactivity deletion is switched off, so turning it back on
+    // returns the threshold you had rather than the factory one.
+    // `inactivity_enabled` is the only thing that decides whether it applies.
+    inactivity_threshold_sec: positiveInt(
+      cfg.inactivity_threshold_sec,
+      BUILT_IN_DEFAULTS.inactivity_threshold_sec
+    ),
     wpm_grace_period_sec: positiveInt(
       cfg.wpm_grace_period_sec,
       BUILT_IN_DEFAULTS.wpm_grace_period_sec

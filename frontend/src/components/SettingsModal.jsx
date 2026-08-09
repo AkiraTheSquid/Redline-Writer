@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { T } from "../theme.js";
-import { BUILT_IN_DEFAULTS, hasSavedDefaults } from "../lib/defaultSettings.js";
+import { BUILT_IN_DEFAULTS, hasSavedDefaults, sanitizeSettings } from "../lib/defaultSettings.js";
 
 const S = {
   overlay: {
@@ -66,11 +66,10 @@ const S = {
 };
 
 // Split a stored seconds value back into the number and unit to show in the
-// form. `storedUnit` is what the user actually picked last time, when we know
-// it; without it, whole minutes are shown as minutes and anything else as
-// seconds (90s would otherwise read as "1.5 minutes").
-function splitDuration(seconds, storedUnit, fallbackValue) {
-  if (!seconds) return { value: fallbackValue, unit: storedUnit || "seconds" };
+// form. `storedUnit` is what the user actually picked last time; without it,
+// whole minutes are shown as minutes and anything else as seconds (90s would
+// otherwise read as "1.5 minutes").
+function splitDuration(seconds, storedUnit) {
   if (storedUnit === "minutes") return { value: String(seconds / 60), unit: "minutes" };
   if (storedUnit === "seconds") return { value: String(seconds), unit: "seconds" };
   return seconds >= 60 && seconds % 60 === 0
@@ -79,29 +78,26 @@ function splitDuration(seconds, storedUnit, fallbackValue) {
 }
 
 export default function SettingsModal({ initialConfig, mode, onSubmit, onClose }) {
-  const cfg = initialConfig || {};
-  const initialInactivity = splitDuration(
-    cfg.inactivity_threshold_sec,
-    cfg.inactivity_unit,
-    "10"
-  );
-  const initialWpmDelay = splitDuration(cfg.wpm_grace_period_sec, cfg.wpm_delay_unit, "10");
+  // Sanitizing first fills in anything the caller left out from
+  // BUILT_IN_DEFAULTS, so no field here needs a fallback of its own to drift
+  // from. It drops the organizer, which is the draft's rather than a default.
+  const cfg = sanitizeSettings(initialConfig);
+  const initialInactivity = splitDuration(cfg.inactivity_threshold_sec, cfg.inactivity_unit);
+  const initialWpmDelay = splitDuration(cfg.wpm_grace_period_sec, cfg.wpm_delay_unit);
 
-  const [durationMin, setDurationMin] = useState(String(cfg.duration_min || 20));
-  const [useIntervals, setUseIntervals] = useState(cfg.use_intervals || false);
+  const [durationMin, setDurationMin] = useState(String(cfg.duration_min));
+  const [useIntervals, setUseIntervals] = useState(cfg.use_intervals);
   const [intervals, setIntervals] = useState(
-    cfg.use_intervals && cfg.intervals?.length
+    cfg.intervals.length
       ? cfg.intervals
-      : [{ name: "", minutes: String(cfg.duration_min || 20), type: "work" }]
+      : [{ name: "", minutes: String(cfg.duration_min), type: "work" }]
   );
-  const [minWpm, setMinWpm] = useState(String(cfg.min_wpm || 10));
-  const [organizer, setOrganizer] = useState(cfg.organizer_text || "");
-  const [preventCopy, setPreventCopy] = useState(cfg.prevent_copy || false);
-  const [redactText, setRedactText] = useState(cfg.redact_text || false);
-  const [dontRedactHeaders, setDontRedactHeaders] = useState(cfg.dont_redact_headers || false);
-  const [inactivityEnabled, setInactivityEnabled] = useState(
-    cfg.inactivity_enabled !== undefined ? cfg.inactivity_enabled : true
-  );
+  const [minWpm, setMinWpm] = useState(String(cfg.min_wpm));
+  const [organizer, setOrganizer] = useState(initialConfig?.organizer_text || "");
+  const [preventCopy, setPreventCopy] = useState(cfg.prevent_copy);
+  const [redactText, setRedactText] = useState(cfg.redact_text);
+  const [dontRedactHeaders, setDontRedactHeaders] = useState(cfg.dont_redact_headers);
+  const [inactivityEnabled, setInactivityEnabled] = useState(cfg.inactivity_enabled);
   const [inactivityValue, setInactivityValue] = useState(initialInactivity.value);
   const [inactivityUnit, setInactivityUnit] = useState(initialInactivity.unit);
   const [wpmDelayValue, setWpmDelayValue] = useState(initialWpmDelay.value);
@@ -117,8 +113,8 @@ export default function SettingsModal({ initialConfig, mode, onSubmit, onClose }
   // it is this draft's notes, not part of the defaults.
   function restoreBuiltInDefaults() {
     const d = BUILT_IN_DEFAULTS;
-    const inact = splitDuration(d.inactivity_threshold_sec, d.inactivity_unit, "10");
-    const grace = splitDuration(d.wpm_grace_period_sec, d.wpm_delay_unit, "10");
+    const inact = splitDuration(d.inactivity_threshold_sec, d.inactivity_unit);
+    const grace = splitDuration(d.wpm_grace_period_sec, d.wpm_delay_unit);
     setDurationMin(String(d.duration_min));
     setUseIntervals(d.use_intervals);
     setIntervals([{ name: "", minutes: String(d.duration_min), type: "work" }]);
@@ -171,9 +167,13 @@ export default function SettingsModal({ initialConfig, mode, onSubmit, onClose }
       redact_text: redactText,
       dont_redact_headers: dontRedactHeaders,
       inactivity_enabled: inactivityEnabled,
-      inactivity_threshold_sec: inactivityEnabled
+      // Sent even when the checkbox is off, so the threshold survives being
+      // switched off and comes back as itself. `inactivity_enabled` is what the
+      // session actually checks before enforcing it. The field is only validated
+      // when enabled, hence the fallback for a threshold left blank.
+      inactivity_threshold_sec: inactVal > 0
         ? (inactivityUnit === "minutes" ? inactVal * 60 : inactVal)
-        : 0,
+        : BUILT_IN_DEFAULTS.inactivity_threshold_sec,
       wpm_grace_period_sec: wpmDelayUnit === "minutes" ? wpmDelay * 60 : wpmDelay,
       use_intervals: useIntervals,
       intervals: useIntervals ? intervals : [],

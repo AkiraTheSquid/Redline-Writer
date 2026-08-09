@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { api } from "../api.js";
 import { T } from "../theme.js";
+import { loadDefaultSettings } from "../lib/defaultSettings.js";
 
 export default function DraftsScreen({ onOpen, onSignOut, authEnabled }) {
   const [drafts, setDrafts] = useState([]);
@@ -19,9 +20,12 @@ export default function DraftsScreen({ onOpen, onSignOut, authEnabled }) {
   async function handleNewDraft() {
     setCreating(true);
     try {
+      // Start from the saved defaults rather than 20/10, so a new draft matches
+      // what the settings modal will show for it.
+      const defaults = loadDefaultSettings();
       const draft = await api.createSession({
-        duration_min: 20,
-        min_wpm: 10,
+        duration_min: defaults.duration_min,
+        min_wpm: defaults.min_wpm,
         title: "",
         content: "",
         outcome: "draft",

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import { api } from "../api.js";
 import { T } from "../theme.js";
+import { loadDefaultSettings, saveDefaultSettings } from "../lib/defaultSettings.js";
 import SettingsModal from "./SettingsModal.jsx";
 import RichEditor, { extractTiptapHeaders } from "./RichEditor.jsx";
 
@@ -78,12 +79,17 @@ export default function WritingScreen({ draft, onEnd }) {
   const [sessionMode, setSessionMode] = useState(false); // false = free writing, true = timed session
   const [showSettings, setShowSettings] = useState(null); // null | 'start' | 'edit'
   const [draftTitle, setDraftTitle] = useState(draft.title || "");
-  // Local copy of settings so the modal pre-fills correctly after editing
-  const [draftConfig, setDraftConfig] = useState({
-    duration_min: draft.duration_min || 20,
-    min_wpm: draft.min_wpm || 10,
+  // Local copy of settings so the modal pre-fills correctly after editing.
+  // Seeded from the app-wide defaults, since the database only carries three of
+  // these fields — the rest (redaction, copy protection, thresholds, intervals)
+  // would otherwise be back to factory settings on every restart. The draft's
+  // own stored duration/WPM are deliberately not consulted: the settings are one
+  // app-wide default, so opening any draft shows the same starting point. Only
+  // the organizer, which is that draft's notes, comes from the draft.
+  const [draftConfig, setDraftConfig] = useState(() => ({
+    ...loadDefaultSettings(),
     organizer_text: draft.organizer_text || "",
-  });
+  }));
 
   // ── Session config (set when timed session starts) ───────────────────────
   const sessionConfigRef = useRef(null);
@@ -170,19 +176,25 @@ export default function WritingScreen({ draft, onEnd }) {
 
   // ── Settings modal submit ────────────────────────────────────────────────
   function handleSettingsSubmit(config) {
+    const { save_as_default: saveAsDefault, ...settings } = config;
+
+    // Unless this was a one-off, these become the app-wide defaults, so the next
+    // draft — and the next launch — opens with them already filled in.
+    if (saveAsDefault) saveDefaultSettings(settings);
+
     // Always patch the draft with updated settings
     const patch = {
-      duration_min: config.duration_min,
-      min_wpm: config.min_wpm,
-      organizer_text: config.organizer_text,
+      duration_min: settings.duration_min,
+      min_wpm: settings.min_wpm,
+      organizer_text: settings.organizer_text,
     };
-    setDraftConfig((prev) => ({ ...prev, ...patch, ...config }));
-    organizerRef.current = config.organizer_text;
+    setDraftConfig((prev) => ({ ...prev, ...settings }));
+    organizerRef.current = settings.organizer_text;
     api.patchSession(draft.id, patch).catch(() => {});
 
     if (showSettings === "start") {
       // Start timed session
-      sessionConfigRef.current = config;
+      sessionConfigRef.current = settings;
       setShowSettings(null);
       setSessionMode(true);
     } else {

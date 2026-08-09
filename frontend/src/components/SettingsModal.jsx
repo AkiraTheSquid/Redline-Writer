@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { T } from "../theme.js";
+import { BUILT_IN_DEFAULTS, hasSavedDefaults } from "../lib/defaultSettings.js";
 
 const S = {
   overlay: {
@@ -64,8 +65,28 @@ const S = {
   },
 };
 
+// Split a stored seconds value back into the number and unit to show in the
+// form. `storedUnit` is what the user actually picked last time, when we know
+// it; without it, whole minutes are shown as minutes and anything else as
+// seconds (90s would otherwise read as "1.5 minutes").
+function splitDuration(seconds, storedUnit, fallbackValue) {
+  if (!seconds) return { value: fallbackValue, unit: storedUnit || "seconds" };
+  if (storedUnit === "minutes") return { value: String(seconds / 60), unit: "minutes" };
+  if (storedUnit === "seconds") return { value: String(seconds), unit: "seconds" };
+  return seconds >= 60 && seconds % 60 === 0
+    ? { value: String(seconds / 60), unit: "minutes" }
+    : { value: String(seconds), unit: "seconds" };
+}
+
 export default function SettingsModal({ initialConfig, mode, onSubmit, onClose }) {
   const cfg = initialConfig || {};
+  const initialInactivity = splitDuration(
+    cfg.inactivity_threshold_sec,
+    cfg.inactivity_unit,
+    "10"
+  );
+  const initialWpmDelay = splitDuration(cfg.wpm_grace_period_sec, cfg.wpm_delay_unit, "10");
+
   const [durationMin, setDurationMin] = useState(String(cfg.duration_min || 20));
   const [useIntervals, setUseIntervals] = useState(cfg.use_intervals || false);
   const [intervals, setIntervals] = useState(
@@ -81,23 +102,37 @@ export default function SettingsModal({ initialConfig, mode, onSubmit, onClose }
   const [inactivityEnabled, setInactivityEnabled] = useState(
     cfg.inactivity_enabled !== undefined ? cfg.inactivity_enabled : true
   );
-  const [inactivityValue, setInactivityValue] = useState(
-    cfg.inactivity_threshold_sec
-      ? String(cfg.inactivity_threshold_sec >= 60 ? cfg.inactivity_threshold_sec / 60 : cfg.inactivity_threshold_sec)
-      : "10"
-  );
-  const [inactivityUnit, setInactivityUnit] = useState(
-    cfg.inactivity_threshold_sec >= 60 ? "minutes" : "seconds"
-  );
-  const [wpmDelayValue, setWpmDelayValue] = useState(
-    cfg.wpm_grace_period_sec
-      ? String(cfg.wpm_grace_period_sec >= 60 ? cfg.wpm_grace_period_sec / 60 : cfg.wpm_grace_period_sec)
-      : "10"
-  );
-  const [wpmDelayUnit, setWpmDelayUnit] = useState(
-    cfg.wpm_grace_period_sec >= 60 ? "minutes" : "seconds"
-  );
+  const [inactivityValue, setInactivityValue] = useState(initialInactivity.value);
+  const [inactivityUnit, setInactivityUnit] = useState(initialInactivity.unit);
+  const [wpmDelayValue, setWpmDelayValue] = useState(initialWpmDelay.value);
+  const [wpmDelayUnit, setWpmDelayUnit] = useState(initialWpmDelay.unit);
+  // Checked by default: the point of the setting is that you stop re-entering
+  // these. Uncheck it to run one session differently without moving the default.
+  const [saveAsDefault, setSaveAsDefault] = useState(true);
   const [error, setError] = useState("");
+  // Read once on open; saving happens on submit, after this modal is gone.
+  const [usingSavedDefaults] = useState(hasSavedDefaults);
+
+  // Put every field back to the built-in values. The organizer is left alone —
+  // it is this draft's notes, not part of the defaults.
+  function restoreBuiltInDefaults() {
+    const d = BUILT_IN_DEFAULTS;
+    const inact = splitDuration(d.inactivity_threshold_sec, d.inactivity_unit, "10");
+    const grace = splitDuration(d.wpm_grace_period_sec, d.wpm_delay_unit, "10");
+    setDurationMin(String(d.duration_min));
+    setUseIntervals(d.use_intervals);
+    setIntervals([{ name: "", minutes: String(d.duration_min), type: "work" }]);
+    setMinWpm(String(d.min_wpm));
+    setPreventCopy(d.prevent_copy);
+    setRedactText(d.redact_text);
+    setDontRedactHeaders(d.dont_redact_headers);
+    setInactivityEnabled(d.inactivity_enabled);
+    setInactivityValue(inact.value);
+    setInactivityUnit(inact.unit);
+    setWpmDelayValue(grace.value);
+    setWpmDelayUnit(grace.unit);
+    setError("");
+  }
 
   function handleSubmit(e) {
     e.preventDefault();
@@ -142,6 +177,9 @@ export default function SettingsModal({ initialConfig, mode, onSubmit, onClose }
       wpm_grace_period_sec: wpmDelayUnit === "minutes" ? wpmDelay * 60 : wpmDelay,
       use_intervals: useIntervals,
       intervals: useIntervals ? intervals : [],
+      inactivity_unit: inactivityUnit,
+      wpm_delay_unit: wpmDelayUnit,
+      save_as_default: saveAsDefault,
     });
   }
 
@@ -306,6 +344,32 @@ export default function SettingsModal({ initialConfig, mode, onSubmit, onClose }
               <option value="minutes">minutes</option>
             </select>
           </label>
+
+          <label style={S.label}>Defaults</label>
+          <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 14, color: T.textMuted }}>
+            <input
+              type="checkbox"
+              checked={saveAsDefault}
+              onChange={(e) => setSaveAsDefault(e.target.checked)}
+            />
+            Save these as my default settings
+          </label>
+          <div style={{ ...S.hint, display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+            <span>
+              {saveAsDefault
+                ? "Every draft you open from now on starts with these — organizer notes stay with their own draft."
+                : usingSavedDefaults
+                  ? "Used for this session only; your saved defaults are left as they are."
+                  : "Used for this session only."}
+            </span>
+            <button
+              type="button"
+              style={{ ...S.miniBtn, fontSize: 12 }}
+              onClick={restoreBuiltInDefaults}
+            >
+              Restore built-in settings
+            </button>
+          </div>
 
           {error && <div style={{ color: T.text, fontSize: 13, marginTop: 10 }}>{error}</div>}
 

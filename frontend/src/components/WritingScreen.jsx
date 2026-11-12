@@ -68,9 +68,28 @@ const BLOCKED_KEYS = new Set([
   "F1", "F2", "F3", "F4", "F5", "F6", "F7", "F8", "F9", "F10", "F11", "F12",
 ]);
 
-const LEFT_PAD_W = 260;
+const PAD_W = 260;
 const OUTLINE_W = 240;
-const RIGHT_PAD_W = 260;
+// The writing column the side pads give way to: they shrink (down to nothing)
+// before the editor drops below this, so a half-width window still has a
+// comfortable line length instead of a sliver between two fixed margins.
+const EDITOR_MIN_W = 640;
+
+// The pads are pure margin, so their width is whatever is left over once the
+// outline and a comfortable editor have taken their share, capped at PAD_W.
+// The outline's width is reserved whether or not the panel is showing: hiding
+// it must hand its space to the editor, not to wider margins.
+const PAD_STYLE_WIDTH = `clamp(0px, calc((100% - ${OUTLINE_W + EDITOR_MIN_W}px) / 2), ${PAD_W}px)`;
+
+// Whether the Headers panel is hidden is a per-machine layout preference, kept
+// in localStorage. Storage can be unavailable; the panel then just shows.
+const HIDE_OUTLINE_KEY = "redline-writer:hide-outline";
+function loadHideOutline() {
+  try { return localStorage.getItem(HIDE_OUTLINE_KEY) === "1"; } catch { return false; }
+}
+function saveHideOutline(hidden) {
+  try { localStorage.setItem(HIDE_OUTLINE_KEY, hidden ? "1" : "0"); } catch {}
+}
 
 // ─── component ──────────────────────────────────────────────────────────────
 
@@ -121,6 +140,15 @@ export default function WritingScreen({ draft, onEnd }) {
   const [outlineItems, setOutlineItems] = useState([]);
   const [intervalIndex, setIntervalIndex] = useState(0);
   const [editWorkMode, setEditWorkMode] = useState(false);
+  const [hideOutline, setHideOutline] = useState(loadHideOutline);
+
+  useEffect(() => { saveHideOutline(hideOutline); }, [hideOutline]);
+
+  function toggleOutline() {
+    setHideOutline((prev) => !prev);
+    // Hand the cursor straight back so typing carries on without a click.
+    editorRef.current?.getEditor()?.commands.focus();
+  }
 
   // ── Editor ref (TipTap, exposes getHTML/getText/getEditor/clearContent) ──
   const editorRef = useRef(null);
@@ -499,13 +527,30 @@ export default function WritingScreen({ draft, onEnd }) {
   // ── Shared editor area (used in both modes) ───────────────────────────────
   const topBarH = 48;
 
+  const padStyle = { width: PAD_STYLE_WIDTH, flexShrink: 0, background: T.bg };
+
+  // Shared by both top bars; the panel can be hidden mid-session too.
+  const outlineToggle = (
+    <button
+      // Keep focus in the editor: a mouse click on the toggle must not pull
+      // the cursor out of the text you are writing.
+      onMouseDown={(e) => e.preventDefault()}
+      onClick={toggleOutline}
+      title={hideOutline ? "Show the Headers panel" : "Hide the Headers panel for a wider writing area"}
+      style={{ ...topBarBtn, flexShrink: 0 }}
+    >
+      {hideOutline ? "Show Headers" : "Hide Headers"}
+    </button>
+  );
+
   const editorArea = (
     <div style={{ display: "flex", flex: 1, overflow: "hidden" }}>
       {/* Left pad — margin only now. It used to carry the WPM gauge; the
           warning is the whole app's colour, so this is plain background. */}
-      <div style={{ width: LEFT_PAD_W, flexShrink: 0, background: T.bg }} />
+      <div style={padStyle} />
 
       {/* Outline */}
+      {!hideOutline && (
       <div style={{ width: OUTLINE_W, flexShrink: 0, padding: "12px 10px", background: T.bg, overflowY: "auto" }}>
         <div style={{ fontSize: 11, fontWeight: 700, color: T.textFaint, marginBottom: 8, textTransform: "uppercase", letterSpacing: "0.06em" }}>
           Headers
@@ -529,6 +574,7 @@ export default function WritingScreen({ draft, onEnd }) {
           ))
         )}
       </div>
+      )}
 
       {/* Main editor — RichEditor includes its own toolbar */}
       <RichEditor
@@ -543,7 +589,7 @@ export default function WritingScreen({ draft, onEnd }) {
       />
 
       {/* Right pad — see the left pad */}
-      <div style={{ width: RIGHT_PAD_W, flexShrink: 0, background: T.bg }} />
+      <div style={padStyle} />
     </div>
   );
 
@@ -575,6 +621,7 @@ export default function WritingScreen({ draft, onEnd }) {
             />
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
+            {outlineToggle}
             <button
               onClick={() => setShowSettings("edit")}
               style={{ fontSize: 13, padding: "6px 14px", border: `1px solid ${T.border}`, borderRadius: 5, background: "transparent", color: T.textMuted, cursor: "pointer" }}
@@ -618,6 +665,7 @@ export default function WritingScreen({ draft, onEnd }) {
         </span>
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
           <span style={{ fontSize: 17, fontWeight: 600, color: T.text }}>{formatTime(displayTime)}</span>
+          {outlineToggle}
           {isEdit && !editWorkMode && (
             <button
               style={topBarBtn}

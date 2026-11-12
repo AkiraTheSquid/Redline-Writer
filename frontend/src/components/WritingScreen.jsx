@@ -421,24 +421,29 @@ export default function WritingScreen({ draft, onEnd }) {
           if (inactivitySecRef.current >= warningStart && inactivitySecRef.current < threshold) beep(750, 150);
           if (inactivitySecRef.current >= threshold) { clearInterval(timer); endSession("deleted_inactivity"); return; }
         }
-
-        if (wpmElapsedSec >= wpmGracePeriod && wpm < minWpmLocal) { clearInterval(timer); endSession("deleted_wpm"); return; }
       }
 
-      // Gated on exactly the conditions the deletion rules above run under —
-      // work mode, not a break, inactivity enabled (the WPM check lives inside
-      // that same branch). Colouring the app for a rule that cannot fire would
-      // be a false alarm.
+      // The WPM rule is independent of the inactivity switch: "Inactivity
+      // deletion" off must not also switch off the minimum WPM.
+      if (isWorkModeLocal && wpmElapsedSec >= wpmGracePeriod && wpm < minWpmLocal) {
+        clearInterval(timer); endSession("deleted_wpm"); return;
+      }
+
+      // Each rule contributes danger under exactly the conditions it can fire
+      // — colouring the app for a rule that cannot delete would be a false alarm.
       let nextDanger = 0;
-      if (isWorkModeLocal && inactEnabled && !isBreakLocal) {
+      if (isWorkModeLocal && !isBreakLocal) {
         // WPM reads 0 for the first seconds of every interval and cannot delete
         // anything until the grace period is up. Without easing its share in,
         // the app would go fully red the instant a session started.
         const graceProgress = clamp01(wpmElapsedSec / Math.max(1, wpmGracePeriod));
-        nextDanger = Math.max(
-          wpmDanger(wpm, minWpmLocal) * graceProgress,
-          inactivityDanger(inactivitySecRef.current, Math.max(1, inactThreshold)),
-        );
+        nextDanger = wpmDanger(wpm, minWpmLocal) * graceProgress;
+        if (inactEnabled) {
+          nextDanger = Math.max(
+            nextDanger,
+            inactivityDanger(inactivitySecRef.current, Math.max(1, inactThreshold)),
+          );
+        }
       }
       setDanger(clamp01(nextDanger));
 

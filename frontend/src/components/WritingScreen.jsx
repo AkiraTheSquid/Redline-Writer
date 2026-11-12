@@ -263,7 +263,6 @@ export default function WritingScreen({ draft, onEnd }) {
     sessionEndedRef.current = false;
     sessionStartRef.current = Date.now();
     startIntervalAt(0);
-    document.documentElement.requestFullscreen?.().catch(() => {});
   }, [sessionMode]);
 
   // ── End session (saves to DB, returns to draft mode) ────────────────────
@@ -275,7 +274,6 @@ export default function WritingScreen({ draft, onEnd }) {
       try {
         await api.deleteSession(sessionIdRef.current);
       } catch {}
-      document.exitFullscreen?.().catch(() => {});
       setSessionMode(false);
       setEditWorkMode(false);
       setIntervalIndex(0);
@@ -306,7 +304,6 @@ export default function WritingScreen({ draft, onEnd }) {
       });
     } catch {}
 
-    document.exitFullscreen?.().catch(() => {});
     setSessionMode(false);
     setEditWorkMode(false);
     setIntervalIndex(0);
